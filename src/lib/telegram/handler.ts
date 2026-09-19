@@ -3,7 +3,7 @@ import { readExifMeta } from "@/lib/exif";
 import { mapsUrlFromCoords } from "@/lib/format";
 import { normalizeImageForStorage } from "@/lib/image-normalize";
 import { createServiceClient } from "@/lib/supabase/service";
-import { downloadFile, getFile, sendMessage } from "@/lib/telegram/api";
+import { downloadFile, getFile, sendMessage, syncBotCommands } from "@/lib/telegram/api";
 import {
   locationFromTelegram,
   parseMapsLink,
@@ -30,7 +30,7 @@ Commands:
 /keep — keep the suggested place name
 /skip — skip people (when asked)
 /cancel — abandon draft
-/delete last — remove newest post`;
+/delete — remove newest post`;
 
 const PEOPLE_PROMPT = `Anyone in this photo?
 
@@ -506,6 +506,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
   try {
     if (cmd === "/start" || cmd === "/help") {
+      await syncBotCommands();
       await sendMessage(chatId, HELP);
       return;
     }
@@ -516,7 +517,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       return;
     }
 
-    if (cmd === "/delete" && text.toLowerCase().startsWith("/delete last")) {
+    if (cmd === "/delete" || text.toLowerCase().startsWith("/delete last")) {
       await deleteLastPost(chatId);
       return;
     }

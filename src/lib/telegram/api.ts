@@ -55,3 +55,25 @@ export async function downloadFile(filePath: string): Promise<ArrayBuffer> {
   }
   return res.arrayBuffer();
 }
+
+const BOT_COMMANDS = [
+  { command: "start", description: "How to publish a moment" },
+  { command: "help", description: "How to publish a moment" },
+  { command: "keep", description: "Keep the suggested place name" },
+  { command: "skip", description: "Skip tagging people" },
+  { command: "cancel", description: "Cancel the current draft" },
+  { command: "delete", description: "Delete the newest published post" },
+] as const;
+
+/** Registers the / menu commands in Telegram (idempotent). */
+export async function syncBotCommands() {
+  const res = await fetch(`${API}/bot${await token()}/setMyCommands`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ commands: BOT_COMMANDS }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    console.error("telegram setMyCommands failed", res.status, body);
+  }
+}
