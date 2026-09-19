@@ -6,10 +6,15 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { downloadFile, getFile, sendMessage, syncBotCommands } from "@/lib/telegram/api";
 import { parseMomentDate } from "@/lib/telegram/date";
 import {
+  CAPTION_FORMAT,
+  captionIsComplete,
+  parsePublishCaption,
+} from "@/lib/telegram/caption";
+import {
   locationFromTelegram,
   parseMapsLink,
 } from "@/lib/telegram/maps";
-import { parsePeopleLines } from "@/lib/telegram/people";
+import { parsePeopleLines, type PersonInput } from "@/lib/telegram/people";
 import type {
   BotDraft,
   TelegramMessage,
@@ -18,18 +23,18 @@ import type {
 
 const HELP = `asit.space publisher
 
-Send a photo (File preferred — keeps GPS EXIF).
+Send a photo as a File (keeps EXIF when possible).
 
-If capture date is missing, send the date (e.g. 18 Sep 2024).
-If location is missing, share a Telegram location pin or a Google Maps link.
-Then name the place (or /keep), then list people.
+Fast path — put everything in the caption (no questions):
 
-People (one per line):
-Name | @twitter | https://linkedin.com/in/...
+${CAPTION_FORMAT}
+
+Interactive path — send the photo alone and the bot will ask for
+date → location → place name → people.
 
 Commands:
 /start /help — this message
-/now — use send time as the date
+/now — use send time as the photo date
 /keep — keep the suggested place name
 /skip — skip people (when asked)
 /cancel — abandon draft
@@ -144,6 +149,14 @@ async function handleLocationNameStep(
   }
 
   if (cmd === "/keep") {
+    const people =
+      draft.people_json && draft.people_json.length
+        ? draft.people_json
+        : null;
+    if (people) {
+      await publishDraft(chatId, { ...draft, step: "awaiting_people" }, people);
+      return;
+    }
     await upsertDraft({ ...draft, step: "awaiting_people" });
     await sendMessage(chatId, PEOPLE_PROMPT);
     return;
@@ -158,11 +171,16 @@ async function handleLocationNameStep(
     return;
   }
 
-  await upsertDraft({
+  const named = {
     ...draft,
-    step: "awaiting_people",
+    step: "awaiting_people" as const,
     location_name: text.slice(0, 120),
-  });
+  };
+  if (draft.people_json?.length) {
+    await publishDraft(chatId, named, draft.people_json);
+    return;
+  }
+  await upsertDraft(named);
   await sendMessage(chatId, PEOPLE_PROMPT);
 }
 function allowedUserId(): Promise<string | null> {
@@ -212,9 +230,10 @@ async function clearDraft(chatId: number) {
 }
 
 async function upsertDraft(
-  draft: Omit<BotDraft, "file_unique_id" | "mime_type"> & {
+  draft: Omit<BotDraft, "file_unique_id" | "mime_type" | "people_json"> & {
     file_unique_id?: string | null;
     mime_type?: string | null;
+    people_json?: PersonInput[] | null;
   },
 ) {
   const supabase = await createServiceClient();
@@ -230,6 +249,7 @@ async function upsertDraft(
       lng: draft.lng,
       maps_url: draft.maps_url,
       location_name: draft.location_name,
+      people_json: draft.people_json ?? null,
     },
     { onConflict: "chat_id" },
   );
@@ -239,7 +259,7 @@ async function upsertDraft(
 async function publishDraft(
   chatId: number,
   draft: BotDraft,
-  peopleText: string | null,
+  peopleInput: string | PersonInput[] | null,
 ) {
   const supabase = await createServiceClient();
   const file = await getFile(draft.file_id);
@@ -308,10 +328,12 @@ async function publishDraft(
     return;
   }
 
-  const people =
-    peopleText && peopleText.trim().toLowerCase() !== "/skip"
-      ? parsePeopleLines(peopleText)
-      : [];
+  let people: PersonInput[] = [];
+  if (Array.isArray(peopleInput)) {
+    people = peopleInput;
+  } else if (peopleInput && peopleInput.trim().toLowerCase() !== "/skip") {
+    people = parsePeopleLines(peopleInput);
+  }
 
   if (people.length) {
     const rows = people.map((p, i) => ({
@@ -424,6 +446,87 @@ async function startFromImage(message: TelegramMessage) {
   const pinLabel = hasGps
     ? `Pin ${lat!.toFixed(4)}, ${lng!.toFixed(4)}`
     : null;
+
+  const caption = message.caption?.trim() ?? "";
+  if (caption) {
+    const parsed = await parsePublishCaption(caption, {
+      date: usedExifDate ? occurredAt : null,
+      lat,
+      lng,
+    });
+
+    const draft: BotDraft = {
+      chat_id: chatId,
+      step: "awaiting_people",
+      file_id: fileId,
+      file_unique_id: fileUniqueId,
+      mime_type: mime,
+      occurred_at: (parsed.date ?? occurredAt).toISOString(),
+      lat: parsed.lat,
+      lng: parsed.lng,
+      maps_url: parsed.maps_url,
+      location_name: parsed.location_name ?? pinLabel,
+      people_json: parsed.people.length ? parsed.people : null,
+    };
+
+    if (captionIsComplete(parsed)) {
+      await sendMessage(chatId, "Caption looks complete — publishing…");
+      await publishDraft(
+        chatId,
+        {
+          ...draft,
+          occurred_at: parsed.date!.toISOString(),
+          lat: parsed.lat,
+          lng: parsed.lng,
+          maps_url: parsed.maps_url,
+          location_name: parsed.location_name,
+        },
+        parsed.people,
+      );
+      return;
+    }
+
+    // Partial caption — seed draft and ask only for what’s missing
+    const nextStep: BotDraft["step"] = !parsed.date
+      ? "awaiting_date"
+      : parsed.lat == null || parsed.lng == null
+        ? "awaiting_location"
+        : !parsed.location_name
+          ? "awaiting_location_name"
+          : "awaiting_people";
+
+    await upsertDraft({
+      ...draft,
+      step: nextStep,
+    });
+
+    if (!parsed.date) {
+      await sendMessage(
+        chatId,
+        `Caption incomplete (need date).\n\n${DATE_PROMPT}\n\n${CAPTION_FORMAT}`,
+      );
+      return;
+    }
+    if (parsed.lat == null || parsed.lng == null) {
+      await sendMessage(
+        chatId,
+        `Caption incomplete (need location).\n\n${LOCATION_PROMPT}\n\n${CAPTION_FORMAT}`,
+      );
+      return;
+    }
+    if (!parsed.location_name) {
+      await askForLocationName(chatId, {
+        ...draft,
+        occurred_at: parsed.date.toISOString(),
+        lat: parsed.lat,
+        lng: parsed.lng,
+        maps_url: parsed.maps_url,
+        location_name: pinLabel,
+        people_json: draft.people_json,
+      });
+      return;
+    }
+  }
 
   const baseDraft: BotDraft = {
     chat_id: chatId,

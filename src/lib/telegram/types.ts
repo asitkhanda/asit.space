@@ -1,3 +1,5 @@
+import type { PersonInput } from "@/lib/telegram/people";
+
 export type TelegramUser = {
   id: number;
   is_bot?: boolean;
@@ -72,4 +74,5 @@ export type BotDraft = {
   lng: number | null;
   maps_url: string | null;
   location_name: string | null;
+  people_json?: PersonInput[] | null;
 };
