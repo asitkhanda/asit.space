@@ -42,29 +42,33 @@ const LOCATION_PROMPT = `No GPS in that photo.
 Share a Telegram location pin, or paste a Google Maps link.
 (/cancel to abort)`;
 
-function allowedUserId(): string | null {
-  const raw = getEnv("TELEGRAM_ALLOWED_USER_ID");
-  if (!raw) return null;
-  // Keep as string — Telegram IDs can exceed safe integer range in edge cases
-  if (!/^-?\d+$/.test(raw)) return null;
-  return raw;
+function allowedUserId(): Promise<string | null> {
+  return getEnv("TELEGRAM_ALLOWED_USER_ID").then((raw) => {
+    if (!raw) return null;
+    if (!/^-?\d+$/.test(raw)) return null;
+    return raw;
+  });
 }
 
-function siteUrl() {
-  return (getEnv("NEXT_PUBLIC_SITE_URL") ?? "https://asit.space").replace(
+async function siteUrl() {
+  return (await getEnv("NEXT_PUBLIC_SITE_URL") ?? "https://asit.space").replace(
     /\/$/,
     "",
   );
 }
 
-function missingConfigMessage() {
-  const missing = [
+async function missingConfigMessage() {
+  const keys = [
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_ALLOWED_USER_ID",
     "TELEGRAM_WEBHOOK_SECRET",
     "SUPABASE_SERVICE_ROLE_KEY",
     "NEXT_PUBLIC_SUPABASE_URL",
-  ].filter((key) => !getEnv(key));
+  ];
+  const missing: string[] = [];
+  for (const key of keys) {
+    if (!(await getEnv(key))) missing.push(key);
+  }
   if (!missing.length) return null;
   return `Server config incomplete. Missing: ${missing.join(", ")}. Add them under Cloudflare Worker → Settings → Variables and Secrets (runtime), then redeploy with --keep-vars.`;
 }
@@ -77,7 +81,7 @@ function extForMime(mime: string | null | undefined) {
 }
 
 async function getDraft(chatId: number): Promise<BotDraft | null> {
-  const supabase = createServiceClient();
+  const supabase = await createServiceClient();
   const { data } = await supabase
     .from("bot_drafts")
     .select("*")
@@ -87,7 +91,7 @@ async function getDraft(chatId: number): Promise<BotDraft | null> {
 }
 
 async function clearDraft(chatId: number) {
-  const supabase = createServiceClient();
+  const supabase = await createServiceClient();
   await supabase.from("bot_drafts").delete().eq("chat_id", chatId);
 }
 
@@ -97,7 +101,7 @@ async function upsertDraft(
     mime_type?: string | null;
   },
 ) {
-  const supabase = createServiceClient();
+  const supabase = await createServiceClient();
   const { error } = await supabase.from("bot_drafts").upsert(
     {
       chat_id: draft.chat_id,
@@ -121,7 +125,7 @@ async function publishDraft(
   draft: BotDraft,
   peopleText: string | null,
 ) {
-  const supabase = createServiceClient();
+  const supabase = await createServiceClient();
   const file = await getFile(draft.file_id);
   const buffer = await downloadFile(file.file_path!);
 
@@ -207,12 +211,12 @@ async function publishDraft(
   await clearDraft(chatId);
   await sendMessage(
     chatId,
-    `Published.\n${siteUrl()}/?p=${post.id}`,
+    `Published.\n${await siteUrl()}/?p=${post.id}`,
   );
 }
 
 async function deleteLastPost(chatId: number) {
-  const supabase = createServiceClient();
+  const supabase = await createServiceClient();
   const { data: post } = await supabase
     .from("posts")
     .select("id, photo_path")
@@ -376,10 +380,10 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   const chatId = message.chat.id;
 
   // Prefer telling the user when runtime secrets are missing (common after deploy wipe)
-  const configError = missingConfigMessage();
+  const configError = await missingConfigMessage();
   if (configError) {
     console.error(configError);
-    if (getEnv("TELEGRAM_BOT_TOKEN")) {
+    if (await getEnv("TELEGRAM_BOT_TOKEN")) {
       try {
         await sendMessage(chatId, configError);
       } catch (err) {
@@ -389,7 +393,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
     return;
   }
 
-  const allowed = allowedUserId();
+  const allowed = await allowedUserId();
   if (allowed == null) {
     console.error("TELEGRAM_ALLOWED_USER_ID invalid");
     await sendMessage(chatId, "TELEGRAM_ALLOWED_USER_ID is invalid.");

@@ -2,14 +2,14 @@ import { getEnv } from "@/lib/env";
 
 const API = "https://api.telegram.org";
 
-function token() {
-  const t = getEnv("TELEGRAM_BOT_TOKEN");
+async function token() {
+  const t = await getEnv("TELEGRAM_BOT_TOKEN");
   if (!t) throw new Error("Missing TELEGRAM_BOT_TOKEN");
   return t;
 }
 
 export async function sendMessage(chatId: number, text: string) {
-  const res = await fetch(`${API}/bot${token()}/sendMessage`, {
+  const res = await fetch(`${API}/bot${await token()}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -32,7 +32,7 @@ type FileResult = {
 };
 
 export async function getFile(fileId: string): Promise<FileResult> {
-  const res = await fetch(`${API}/bot${token()}/getFile`, {
+  const res = await fetch(`${API}/bot${await token()}/getFile`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ file_id: fileId }),
@@ -49,7 +49,7 @@ export async function getFile(fileId: string): Promise<FileResult> {
 }
 
 export async function downloadFile(filePath: string): Promise<ArrayBuffer> {
-  const res = await fetch(`${API}/file/bot${token()}/${filePath}`);
+  const res = await fetch(`${API}/file/bot${await token()}/${filePath}`);
   if (!res.ok) {
     throw new Error(`download failed: ${res.status}`);
   }
