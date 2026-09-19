@@ -4,6 +4,7 @@ import { mapsUrlFromCoords } from "@/lib/format";
 import { normalizeImageForStorage } from "@/lib/image-normalize";
 import { createServiceClient } from "@/lib/supabase/service";
 import { downloadFile, getFile, sendMessage, syncBotCommands } from "@/lib/telegram/api";
+import { parseMomentDate } from "@/lib/telegram/date";
 import {
   locationFromTelegram,
   parseMapsLink,
@@ -19,6 +20,7 @@ const HELP = `asit.space publisher
 
 Send a photo (File preferred — keeps GPS EXIF).
 
+If capture date is missing, send the date (e.g. 18 Sep 2024).
 If location is missing, share a Telegram location pin or a Google Maps link.
 Then name the place (or /keep), then list people.
 
@@ -27,6 +29,7 @@ Name | @twitter | https://linkedin.com/in/...
 
 Commands:
 /start /help — this message
+/now — use send time as the date
 /keep — keep the suggested place name
 /skip — skip people (when asked)
 /cancel — abandon draft
@@ -43,6 +46,16 @@ Send /skip for none.`;
 const LOCATION_PROMPT = `No GPS in that photo.
 
 Share a Telegram location pin, or paste a Google Maps link.
+(/cancel to abort)`;
+
+const DATE_PROMPT = `No capture date in that file.
+
+Send when this happened, e.g.:
+• 18 Sep 2024
+• 2024-09-18
+• 18 Sep 2024 19:30
+
+Or /now to use the time you sent the photo.
 (/cancel to abort)`;
 
 function locationNamePrompt(current: string) {
@@ -65,6 +78,53 @@ async function askForLocationName(chatId: number, draft: BotDraft) {
     location_name: current,
   });
   await sendMessage(chatId, locationNamePrompt(current));
+}
+
+/** After date is settled, continue to location (if needed) or place name. */
+async function continueAfterDate(chatId: number, draft: BotDraft) {
+  const hasGps = draft.lat != null && draft.lng != null;
+  if (!hasGps) {
+    await upsertDraft({ ...draft, step: "awaiting_location" });
+    await sendMessage(chatId, LOCATION_PROMPT);
+    return;
+  }
+  await askForLocationName(chatId, draft);
+}
+
+async function handleDateStep(message: TelegramMessage, draft: BotDraft) {
+  const chatId = message.chat.id;
+  const text = message.text?.trim() ?? "";
+  const cmd = text.split(/\s+/)[0]?.toLowerCase() ?? "";
+
+  if (!text) {
+    await sendMessage(chatId, DATE_PROMPT);
+    return;
+  }
+
+  if (cmd === "/now") {
+    await continueAfterDate(chatId, draft);
+    return;
+  }
+
+  if (text.startsWith("/")) {
+    await sendMessage(chatId, "Send a date, or /now.\n\n" + DATE_PROMPT);
+    return;
+  }
+
+  const parsed = parseMomentDate(text, new Date(draft.occurred_at));
+  if (!parsed) {
+    await sendMessage(
+      chatId,
+      "Couldn’t read that date. Try 18 Sep 2024 or 2024-09-18.\n\n" +
+        DATE_PROMPT,
+    );
+    return;
+  }
+
+  await continueAfterDate(chatId, {
+    ...draft,
+    occurred_at: parsed.toISOString(),
+  });
 }
 
 async function handleLocationNameStep(
@@ -365,9 +425,9 @@ async function startFromImage(message: TelegramMessage) {
     ? `Pin ${lat!.toFixed(4)}, ${lng!.toFixed(4)}`
     : null;
 
-  await upsertDraft({
+  const baseDraft: BotDraft = {
     chat_id: chatId,
-    step: hasGps ? "awaiting_location_name" : "awaiting_location",
+    step: "awaiting_date",
     file_id: fileId,
     file_unique_id: fileUniqueId,
     mime_type: mime,
@@ -376,30 +436,22 @@ async function startFromImage(message: TelegramMessage) {
     lng,
     maps_url: hasGps ? mapsUrlFromCoords(lat!, lng!) : null,
     location_name: pinLabel,
-  });
+  };
 
-  const dateLabel = occurredAt.toISOString().slice(0, 10);
-  const dateNote = usedExifDate
-    ? `Date from photo: ${dateLabel}`
-    : `No capture date in file — using send time: ${dateLabel}`;
-
-  if (hasGps) {
-    await sendMessage(chatId, `Got it — ${dateNote}`);
-    await askForLocationName(chatId, {
-      chat_id: chatId,
-      step: "awaiting_location_name",
-      file_id: fileId,
-      file_unique_id: fileUniqueId,
-      mime_type: mime,
-      occurred_at: occurredAt.toISOString(),
-      lat,
-      lng,
-      maps_url: mapsUrlFromCoords(lat!, lng!),
-      location_name: pinLabel,
-    });
-  } else {
-    await sendMessage(chatId, `${dateNote}\n\n${LOCATION_PROMPT}`);
+  if (!usedExifDate) {
+    await upsertDraft({ ...baseDraft, step: "awaiting_date" });
+    await sendMessage(chatId, DATE_PROMPT);
+    return;
   }
+
+  await sendMessage(
+    chatId,
+    `Got it — Date from photo: ${occurredAt.toISOString().slice(0, 10)}`,
+  );
+  await continueAfterDate(chatId, {
+    ...baseDraft,
+    step: hasGps ? "awaiting_location_name" : "awaiting_location",
+  });
 }
 
 async function handleLocationStep(message: TelegramMessage, draft: BotDraft) {
@@ -533,6 +585,11 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       if (text) {
         await sendMessage(chatId, "Send a photo to start a post.\n\n" + HELP);
       }
+      return;
+    }
+
+    if (draft.step === "awaiting_date") {
+      await handleDateStep(message, draft);
       return;
     }
 

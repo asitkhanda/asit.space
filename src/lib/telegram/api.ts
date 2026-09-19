@@ -59,6 +59,7 @@ export async function downloadFile(filePath: string): Promise<ArrayBuffer> {
 const BOT_COMMANDS = [
   { command: "start", description: "How to publish a moment" },
   { command: "help", description: "How to publish a moment" },
+  { command: "now", description: "Use send time as the photo date" },
   { command: "keep", description: "Keep the suggested place name" },
   { command: "skip", description: "Skip tagging people" },
   { command: "cancel", description: "Cancel the current draft" },

@@ -56,6 +56,7 @@ export type TelegramUpdate = {
 };
 
 export type BotDraftStep =
+  | "awaiting_date"
   | "awaiting_location"
   | "awaiting_location_name"
   | "awaiting_people";
