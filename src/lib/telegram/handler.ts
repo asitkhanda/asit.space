@@ -1,3 +1,4 @@
+import { getEnv } from "@/lib/env";
 import { readExifMeta } from "@/lib/exif";
 import { mapsUrlFromCoords } from "@/lib/format";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -41,18 +42,31 @@ const LOCATION_PROMPT = `No GPS in that photo.
 Share a Telegram location pin, or paste a Google Maps link.
 (/cancel to abort)`;
 
-function allowedUserId(): number | null {
-  const raw = process.env.TELEGRAM_ALLOWED_USER_ID;
+function allowedUserId(): string | null {
+  const raw = getEnv("TELEGRAM_ALLOWED_USER_ID");
   if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
+  // Keep as string — Telegram IDs can exceed safe integer range in edge cases
+  if (!/^-?\d+$/.test(raw)) return null;
+  return raw;
 }
 
 function siteUrl() {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? "https://asit.space").replace(
+  return (getEnv("NEXT_PUBLIC_SITE_URL") ?? "https://asit.space").replace(
     /\/$/,
     "",
   );
+}
+
+function missingConfigMessage() {
+  const missing = [
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_ALLOWED_USER_ID",
+    "TELEGRAM_WEBHOOK_SECRET",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_URL",
+  ].filter((key) => !getEnv(key));
+  if (!missing.length) return null;
+  return `Server config incomplete. Missing: ${missing.join(", ")}. Add them under Cloudflare Worker → Settings → Variables and Secrets (runtime), then redeploy with --keep-vars.`;
 }
 
 function extForMime(mime: string | null | undefined) {
@@ -359,61 +373,87 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
   const message = update.message;
   if (!message?.from) return;
 
+  const chatId = message.chat.id;
+
+  // Prefer telling the user when runtime secrets are missing (common after deploy wipe)
+  const configError = missingConfigMessage();
+  if (configError) {
+    console.error(configError);
+    if (getEnv("TELEGRAM_BOT_TOKEN")) {
+      try {
+        await sendMessage(chatId, configError);
+      } catch (err) {
+        console.error("sendMessage failed", err);
+      }
+    }
+    return;
+  }
+
   const allowed = allowedUserId();
   if (allowed == null) {
-    console.error("TELEGRAM_ALLOWED_USER_ID not set");
+    console.error("TELEGRAM_ALLOWED_USER_ID invalid");
+    await sendMessage(chatId, "TELEGRAM_ALLOWED_USER_ID is invalid.");
     return;
   }
 
-  if (message.from.id !== allowed) {
-    await sendMessage(message.chat.id, "Unauthorized.");
+  if (String(message.from.id) !== allowed) {
+    await sendMessage(chatId, "Unauthorized.");
     return;
   }
 
-  const chatId = message.chat.id;
   const text = message.text?.trim() ?? "";
   const cmd = text.split(/\s+/)[0]?.toLowerCase() ?? "";
 
-  if (cmd === "/start" || cmd === "/help") {
-    await sendMessage(chatId, HELP);
-    return;
-  }
-
-  if (cmd === "/cancel") {
-    await clearDraft(chatId);
-    await sendMessage(chatId, "Draft cancelled.");
-    return;
-  }
-
-  if (cmd === "/delete" && text.toLowerCase().startsWith("/delete last")) {
-    await deleteLastPost(chatId);
-    return;
-  }
-
-  const draft = await getDraft(chatId);
-
-  if (message.photo?.length || message.document) {
-    await startFromImage(message);
-    return;
-  }
-
-  if (!draft) {
-    if (text) {
-      await sendMessage(chatId, "Send a photo to start a post.\n\n" + HELP);
-    }
-    return;
-  }
-
-  if (draft.step === "awaiting_location") {
-    await handleLocationStep(message, draft);
-    return;
-  }
-
-  if (draft.step === "awaiting_people") {
-    if (!text && !message.caption) {
-      await sendMessage(chatId, PEOPLE_PROMPT);
+  try {
+    if (cmd === "/start" || cmd === "/help") {
+      await sendMessage(chatId, HELP);
       return;
     }
-    await publishDraft(chatId, draft, text || message.caption || "/skip");
+
+    if (cmd === "/cancel") {
+      await clearDraft(chatId);
+      await sendMessage(chatId, "Draft cancelled.");
+      return;
+    }
+
+    if (cmd === "/delete" && text.toLowerCase().startsWith("/delete last")) {
+      await deleteLastPost(chatId);
+      return;
+    }
+
+    const draft = await getDraft(chatId);
+
+    if (message.photo?.length || message.document) {
+      await startFromImage(message);
+      return;
+    }
+
+    if (!draft) {
+      if (text) {
+        await sendMessage(chatId, "Send a photo to start a post.\n\n" + HELP);
+      }
+      return;
+    }
+
+    if (draft.step === "awaiting_location") {
+      await handleLocationStep(message, draft);
+      return;
+    }
+
+    if (draft.step === "awaiting_people") {
+      if (!text && !message.caption) {
+        await sendMessage(chatId, PEOPLE_PROMPT);
+        return;
+      }
+      await publishDraft(chatId, draft, text || message.caption || "/skip");
+    }
+  } catch (err) {
+    console.error("telegram handler error", err);
+    const detail = err instanceof Error ? err.message : "unknown error";
+    try {
+      await sendMessage(chatId, `Something went wrong: ${detail}`);
+    } catch {
+      /* ignore */
+    }
   }
 }

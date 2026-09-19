@@ -44,9 +44,16 @@ Worker name is `asit-dot-space` (must match `WORKER_SELF_REFERENCE` in `wrangler
 In Cloudflare Workers Builds:
 
 - **Build command:** `npx @opennextjs/cloudflare build`
-- **Deploy command:** `npx @opennextjs/cloudflare deploy`
+- **Deploy command:** `npx @opennextjs/cloudflare deploy -- --keep-vars`
 
-Set the same keys as `.env.example` under **Build variables and secrets** and **Variables and Secrets** (runtime). Prefer secrets for `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_ALLOWED_USER_ID`.
+`--keep-vars` is required so each deploy does **not** wipe secrets you set in the dashboard.
+
+Set the same keys as `.env.example` in **both** places:
+
+1. **Settings → Builds → Build variables and secrets** (for the build)
+2. **Settings → Variables and Secrets** (runtime — required for the bot to reply)
+
+Prefer secrets for `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_ALLOWED_USER_ID`.
 
 Local Workers preview: `npm run preview` · Deploy: `npm run deploy`
 

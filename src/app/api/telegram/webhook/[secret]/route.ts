@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getEnv } from "@/lib/env";
 import { handleTelegramUpdate } from "@/lib/telegram/handler";
 import type { TelegramUpdate } from "@/lib/telegram/types";
 
@@ -8,7 +9,7 @@ type Params = { params: Promise<{ secret: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   const { secret } = await params;
-  const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const expected = getEnv("TELEGRAM_WEBHOOK_SECRET");
 
   if (!expected || secret !== expected) {
     return NextResponse.json({ ok: false }, { status: 401 });

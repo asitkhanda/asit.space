@@ -1,7 +1,9 @@
+import { getEnv } from "@/lib/env";
+
 const API = "https://api.telegram.org";
 
 function token() {
-  const t = process.env.TELEGRAM_BOT_TOKEN;
+  const t = getEnv("TELEGRAM_BOT_TOKEN");
   if (!t) throw new Error("Missing TELEGRAM_BOT_TOKEN");
   return t;
 }
