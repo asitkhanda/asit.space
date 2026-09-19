@@ -1,6 +1,7 @@
 import { getEnv } from "@/lib/env";
 import { readExifMeta } from "@/lib/exif";
 import { mapsUrlFromCoords } from "@/lib/format";
+import { normalizeImageForStorage } from "@/lib/image-normalize";
 import { createServiceClient } from "@/lib/supabase/service";
 import { downloadFile, getFile, sendMessage } from "@/lib/telegram/api";
 import {
@@ -73,13 +74,6 @@ async function missingConfigMessage() {
   return `Server config incomplete. Missing: ${missing.join(", ")}. Add them under Cloudflare Worker → Settings → Variables and Secrets (runtime), then redeploy with --keep-vars.`;
 }
 
-function extForMime(mime: string | null | undefined) {
-  if (mime === "image/png") return "png";
-  if (mime === "image/webp") return "webp";
-  if (mime === "image/heic" || mime === "image/heif") return "heic";
-  return "jpg";
-}
-
 async function getDraft(chatId: number): Promise<BotDraft | null> {
   const supabase = await createServiceClient();
   const { data } = await supabase
@@ -129,18 +123,26 @@ async function publishDraft(
   const file = await getFile(draft.file_id);
   const buffer = await downloadFile(file.file_path!);
 
-  if (buffer.byteLength > 8_000_000) {
-    await sendMessage(chatId, "Photo too large (max 8MB).");
+  if (buffer.byteLength > 12_000_000) {
+    await sendMessage(chatId, "Photo too large (max 12MB).");
     return;
   }
 
-  const mime = draft.mime_type || "image/jpeg";
-  const path = `${Date.now()}-${crypto.randomUUID()}.${extForMime(mime)}`;
+  let normalized;
+  try {
+    normalized = await normalizeImageForStorage(buffer, draft.mime_type);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "normalize failed";
+    await sendMessage(chatId, detail);
+    return;
+  }
+
+  const path = `${Date.now()}-${crypto.randomUUID()}.${normalized.ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("photos")
-    .upload(path, buffer, {
-      contentType: mime,
+    .upload(path, normalized.buffer, {
+      contentType: normalized.contentType,
       upsert: false,
     });
 
@@ -255,14 +257,24 @@ async function startFromImage(message: TelegramMessage) {
     mime = "image/jpeg";
   } else if (message.document) {
     const doc = message.document;
-    const mt = doc.mime_type ?? "";
-    if (!mt.startsWith("image/")) {
+    const mt = (doc.mime_type ?? "").toLowerCase();
+    const name = (doc.file_name ?? "").toLowerCase();
+    const looksLikeImage =
+      mt.startsWith("image/") ||
+      /\.(heic|heif|jpe?g|png|webp|gif|tiff?|bmp|avif)$/i.test(name);
+    if (!looksLikeImage) {
       await sendMessage(chatId, "Send an image photo or image file.");
       return;
     }
     fileId = doc.file_id;
     fileUniqueId = doc.file_unique_id;
-    mime = mt;
+    if (mt.startsWith("image/")) {
+      mime = mt;
+    } else if (/\.heic$|\.heif$/i.test(name)) {
+      mime = "image/heic";
+    } else {
+      mime = "application/octet-stream";
+    }
   }
 
   if (!fileId) return;
