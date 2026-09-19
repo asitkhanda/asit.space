@@ -1,26 +1,581 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-stage: #ffffff;
+  --metal: #827c7a;
+  --metal-chip: #b7b7b7;
+  --metal-chip-border: #646464;
+  --metal-grad-hi: #b0aba8;
+  --metal-grad-lo: #4a4847;
+  --screen-border: #b8b8b8;
+  --accent: #fd5901;
+  --accent-hi: #ff7a33;
+  --accent-lo: #e84f00;
+  --accent-border: #5f1300;
+  --accent-border-hi: #8a2e0a;
+  --heart-from: #ff3e0c;
+  --heart-to: #bf3613;
+  --heart-border: #291612;
+  --ink: #000000;
+  --ink-muted: #3a3a3a;
+  --people-bg: #e2e2e2;
+  --social-blue: #62b4e3;
+  --device-shadow: 0px 0px 32px 2px rgba(0, 0, 0, 0.32);
+  --btn-shadow:
+    0px 16px 5px 0px rgba(184, 59, 1, 0),
+    0px 10px 4px 0px rgba(184, 59, 1, 0.02),
+    0px 6px 3px 0px rgba(184, 59, 1, 0.08),
+    0px 3px 3px 0px rgba(184, 59, 1, 0.14),
+    0px 1px 1px 0px rgba(184, 59, 1, 0.16);
+  /* Figma stacked 1px edge — reads as a hard linear stroke rim */
+  --inset-stack:
+    0px 0px 1px 0px rgba(0, 0, 0, 0.02),
+    0px 0px 1px 0px rgba(0, 0, 0, 0.15),
+    0px 0px 1px 0px rgba(0, 0, 0, 0.5),
+    0px 0px 1px 0px rgba(0, 0, 0, 0.85);
+  /* Specular highlight + underside shade — “real button” sheen */
+  --shine-raised:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1.5px 0 rgba(0, 0, 0, 0.22);
+  --shine-metal:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1.5px 0 rgba(0, 0, 0, 0.38);
+  --shine-chip:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  --press-inset:
+    inset 0 2px 4px rgba(0, 0, 0, 0.28),
+    inset 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-stage: var(--bg-stage);
+  --color-metal: var(--metal);
+  --color-accent: var(--accent);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-chrome: var(--ink);
+  --color-people: var(--people-bg);
+  --font-sans: var(--font-inter-display);
+  --font-pixel: var(--font-pixel);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--bg-stage);
+  color: var(--ink);
+  font-family: var(--font-inter-display), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 45%, white);
+  color: black;
+}
+
+.font-pixel {
+  font-family: var(--font-pixel), ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+/* Device chassis */
+.device-chassis {
+  position: relative;
+  background: var(--metal);
+  border-radius: 48px;
+  box-shadow: var(--device-shadow);
+  overflow: hidden;
+}
+
+.device-chassis::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/textures/metal-noise.png");
+  background-size: 266px 377px;
+  background-repeat: repeat;
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Soft top rim light on the chassis body */
+.device-chassis::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0) 18%,
+    rgba(0, 0, 0, 0) 70%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+}
+
+.device-screen {
+  border: 1.5px solid var(--screen-border);
+  border-radius: 24px;
+  box-shadow: var(--inset-stack), var(--shine-chip);
+  overflow: hidden;
+  background: #111;
+  z-index: 1;
+}
+
+/*
+  Divider = Figma Line 1: 4px stroke with vertical linear gradient
+  #1D1D1D → #7D7D7D (reads as a machined groove)
+*/
+.device-divider {
+  height: 4px;
+  width: 100%;
+  border: none;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #1d1d1d 0%, #7d7d7d 100%);
+  box-shadow: 0 0.5px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* Meta chips on device */
+.meta-chip {
+  position: relative;
+  background: linear-gradient(180deg, #c9c9c9 0%, var(--metal-chip) 55%, #a8a8a8 100%);
+  border: 1px solid var(--metal-chip-border);
+  color: var(--ink-muted);
+  border-radius: 16px;
+  box-shadow: var(--shine-chip);
+  overflow: hidden;
+}
+
+.meta-chip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0) 40%
+  );
+}
+
+.meta-chip > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Nav chevron halves — machined metal rocker */
+.chevron-btn {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid #000;
+  color: #1a1a1a;
+  overflow: hidden;
+  box-shadow: var(--inset-stack), var(--shine-metal);
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.chevron-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(255, 255, 255, 0.06) 22%,
+    rgba(255, 255, 255, 0) 48%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+}
+
+.chevron-btn > * {
+  position: relative;
+  z-index: 1;
+}
+
+.chevron-btn-up {
+  background: linear-gradient(
+    180deg,
+    var(--metal-grad-hi) 3.6%,
+    var(--metal-grad-lo) 178%
+  );
+  border-radius: 48px 48px 4px 4px;
+}
+
+.chevron-btn-down {
+  background: linear-gradient(
+    180deg,
+    var(--metal-grad-lo) 36%,
+    var(--metal-grad-hi) 142%
+  );
+  border-radius: 4px 4px 48px 48px;
+}
+
+/* Horizontal rocker (mobile / tablet) — same metal face, matching pill halves */
+.chevron-btn-h-left,
+.chevron-btn-h-right {
+  background: linear-gradient(
+    180deg,
+    var(--metal-grad-hi) 3.6%,
+    var(--metal-grad-lo) 100%
+  );
+}
+
+.chevron-btn-h-left {
+  border-radius: 999px 4px 4px 999px;
+}
+
+.chevron-btn-h-right {
+  border-radius: 4px 999px 999px 4px;
+}
+
+.chevron-btn-round {
+  background: linear-gradient(
+    180deg,
+    var(--metal-grad-hi) 3.6%,
+    var(--metal-grad-lo) 100%
+  );
+  border-radius: 999px;
+}
+
+.chevron-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.chevron-btn:hover:not(:disabled) {
+  filter: brightness(1.04);
+}
+
+.chevron-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.92);
+  box-shadow: var(--inset-stack), var(--press-inset);
+}
+
+/* Orange social / action pills — glossy raised plastic */
+.social-pill {
+  position: relative;
+  isolation: isolate;
+  /* Face fill + linear stroke (lighter top → darker bottom) */
+  border: 1.5px solid transparent;
+  background-image:
+    linear-gradient(
+      180deg,
+      var(--accent-hi) 0%,
+      var(--accent) 42%,
+      var(--accent-lo) 100%
+    ),
+    linear-gradient(180deg, var(--accent-border-hi), var(--accent-border));
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: #fff;
+  border-radius: 16px;
+  box-shadow: var(--btn-shadow), var(--shine-raised);
+  overflow: hidden;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.social-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.38) 0%,
+    rgba(255, 255, 255, 0.1) 16%,
+    rgba(255, 255, 255, 0) 45%,
+    rgba(0, 0, 0, 0.08) 100%
+  );
+}
+
+.social-pill > * {
+  position: relative;
+  z-index: 1;
+}
+
+.social-pill:hover {
+  filter: brightness(1.05);
+}
+
+.social-pill:active {
+  transform: translateY(1px);
+  filter: brightness(0.95);
+  box-shadow:
+    0px 1px 1px 0px rgba(184, 59, 1, 0.2),
+    var(--press-inset);
+}
+
+/* Heart like dial — convex red plastic */
+.heart-dial {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(180deg, var(--heart-from) 0%, var(--heart-to) 100%);
+  border: 1px solid var(--heart-border);
+  box-shadow: var(--inset-stack), var(--shine-raised);
+  color: #111;
+  overflow: hidden;
+  transition:
+    transform 140ms ease,
+    filter 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.heart-dial::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(
+      120% 80% at 50% 12%,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.08) 28%,
+      rgba(255, 255, 255, 0) 55%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.2) 0%,
+      rgba(255, 255, 255, 0) 40%,
+      rgba(0, 0, 0, 0.12) 100%
+    );
+}
+
+.heart-dial > * {
+  position: relative;
+  z-index: 1;
+}
+
+.heart-dial:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.heart-dial:active:not(:disabled) {
+  transform: scale(0.96);
+  box-shadow: var(--inset-stack), var(--press-inset);
+}
+
+/* Calendar plate — brushed metal */
+.calendar-plate {
+  position: relative;
+  border: 1px solid #d0d0d0;
+  border-radius: 16px;
+  box-shadow: var(--inset-stack), var(--shine-metal);
+  background: linear-gradient(131.58deg, #cfcfcf 17.88%, #757575 123.7%);
+  overflow: hidden;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.calendar-plate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0) 35%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+}
+
+.calendar-plate > * {
+  position: relative;
+  z-index: 1;
+}
+
+.calendar-plate:hover {
+  filter: brightness(1.04);
+}
+
+.calendar-plate:active {
+  transform: translateY(1px);
+}
+
+/* People card */
+.people-card {
+  background: var(--people-bg);
+  border: 1px solid #000;
+  border-radius: 32px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+}
+
+.person-name {
+  position: relative;
+  isolation: isolate;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  color: #000;
+  font-weight: 500;
+  text-decoration: none;
+  overflow: hidden;
+  box-shadow: var(--shine-chip);
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.person-name::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.08) 28%,
+    rgba(255, 255, 255, 0) 55%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+}
+
+.person-name > * {
+  position: relative;
+  z-index: 1;
+}
+
+a.person-name:hover,
+button.person-name:hover {
+  filter: brightness(1.05);
+}
+
+a.person-name:active,
+button.person-name:active {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.96);
+  box-shadow: var(--press-inset);
+}
+
+.person-social {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(180deg, #7ac4eb 0%, var(--social-blue) 55%, #4aa0d0 100%);
+  border: 1px solid rgba(20, 70, 100, 0.35);
+  border-radius: 48px;
+  color: #fff;
+  text-decoration: none;
+  overflow: hidden;
+  box-shadow: var(--shine-raised);
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.person-social::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.08) 35%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+}
+
+.person-social > * {
+  position: relative;
+  z-index: 1;
+}
+
+.person-social:hover {
+  filter: brightness(1.06);
+}
+
+.person-social:active {
+  transform: scale(0.94);
+  box-shadow: var(--press-inset);
+}
+
+.marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 8s linear infinite;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Studio pages stay readable on white */
+.studio-shell {
+  background: #f4f2ef;
+  color: #1a1816;
+}
+
+/* Studio form surfaces (light theme aliases) */
+.metal-surface {
+  background: #e8e6e3;
+  border: 1px solid #cfcbc6;
+  box-shadow: var(--inset-stack);
+}
+
+.metal-pill {
+  background: linear-gradient(180deg, #e4e1dc 0%, #d9d6d2 100%);
+  border: 1px solid #b8b4ae;
+  box-shadow: var(--shine-chip);
+}
+
+.accent-dial {
+  background: linear-gradient(180deg, var(--heart-from), var(--heart-to));
+  border: 1px solid var(--heart-border);
+  color: #111;
+  box-shadow: var(--inset-stack), var(--shine-raised);
 }

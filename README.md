@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# asit.space
 
-## Getting Started
+Personal event device — a one-post-at-a-time timeline of outings, movies, design events, and moments.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Next.js (App Router) + Tailwind CSS
+- Supabase (Postgres, Auth magic link, Storage)
+- GSAP + Motion
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Copy `.env.example` to `.env.local` and fill in Supabase URL + anon key.
+2. Set `ADMIN_EMAIL` to your email (must match the magic-link inbox).
+3. In Supabase Auth → URL configuration, add:
+   - Site URL: `http://localhost:3000` (and later `https://asit.space`)
+   - Redirect URLs: `http://localhost:3000/auth/callback`, `https://asit.space/auth/callback`
+4. `npm install && npm run dev`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Routes
 
-## Learn More
+- `/` — public device feed
+- `/archive` — month archive
+- `/studio` — private compose (unlisted; magic-link only)
 
-To learn more about Next.js, take a look at the following resources:
+## Notes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Photos are client-compressed to WebP (~1600px) before upload.
+- Desktop like button increments a sticky visitor-keyed counter.
+- Phone/tablet QR button is a visual shell for a future feature.
