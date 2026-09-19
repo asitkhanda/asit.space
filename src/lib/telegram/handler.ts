@@ -20,12 +20,14 @@ const HELP = `asit.space publisher
 Send a photo (File preferred — keeps GPS EXIF).
 
 If location is missing, share a Telegram location pin or a Google Maps link.
+Then name the place (or /keep), then list people.
 
-Then list people (one per line):
+People (one per line):
 Name | @twitter | https://linkedin.com/in/...
 
 Commands:
 /start /help — this message
+/keep — keep the suggested place name
 /skip — skip people (when asked)
 /cancel — abandon draft
 /delete last — remove newest post`;
@@ -43,6 +45,66 @@ const LOCATION_PROMPT = `No GPS in that photo.
 Share a Telegram location pin, or paste a Google Maps link.
 (/cancel to abort)`;
 
+function locationNamePrompt(current: string) {
+  return `Name this place.
+
+Current label: ${current}
+
+Send a short name (e.g. Cubbon Park, Bangalore), or /keep to keep the current label.`;
+}
+
+async function askForLocationName(chatId: number, draft: BotDraft) {
+  const current =
+    draft.location_name?.trim() ||
+    (draft.lat != null && draft.lng != null
+      ? `Pin ${draft.lat.toFixed(4)}, ${draft.lng.toFixed(4)}`
+      : "Somewhere");
+  await upsertDraft({
+    ...draft,
+    step: "awaiting_location_name",
+    location_name: current,
+  });
+  await sendMessage(chatId, locationNamePrompt(current));
+}
+
+async function handleLocationNameStep(
+  message: TelegramMessage,
+  draft: BotDraft,
+) {
+  const chatId = message.chat.id;
+  const text = message.text?.trim() ?? "";
+  const cmd = text.split(/\s+/)[0]?.toLowerCase() ?? "";
+
+  if (!text) {
+    await sendMessage(
+      chatId,
+      locationNamePrompt(draft.location_name || "Somewhere"),
+    );
+    return;
+  }
+
+  if (cmd === "/keep") {
+    await upsertDraft({ ...draft, step: "awaiting_people" });
+    await sendMessage(chatId, PEOPLE_PROMPT);
+    return;
+  }
+
+  if (text.startsWith("/")) {
+    await sendMessage(
+      chatId,
+      "Send a place name, or /keep.\n\n" +
+        locationNamePrompt(draft.location_name || "Somewhere"),
+    );
+    return;
+  }
+
+  await upsertDraft({
+    ...draft,
+    step: "awaiting_people",
+    location_name: text.slice(0, 120),
+  });
+  await sendMessage(chatId, PEOPLE_PROMPT);
+}
 function allowedUserId(): Promise<string | null> {
   return getEnv("TELEGRAM_ALLOWED_USER_ID").then((raw) => {
     if (!raw) return null;
@@ -299,10 +361,13 @@ async function startFromImage(message: TelegramMessage) {
   }
 
   const hasGps = lat != null && lng != null;
+  const pinLabel = hasGps
+    ? `Pin ${lat!.toFixed(4)}, ${lng!.toFixed(4)}`
+    : null;
 
   await upsertDraft({
     chat_id: chatId,
-    step: hasGps ? "awaiting_people" : "awaiting_location",
+    step: hasGps ? "awaiting_location_name" : "awaiting_location",
     file_id: fileId,
     file_unique_id: fileUniqueId,
     mime_type: mime,
@@ -310,9 +375,7 @@ async function startFromImage(message: TelegramMessage) {
     lat,
     lng,
     maps_url: hasGps ? mapsUrlFromCoords(lat!, lng!) : null,
-    location_name: hasGps
-      ? `Pin ${lat!.toFixed(4)}, ${lng!.toFixed(4)}`
-      : null,
+    location_name: pinLabel,
   });
 
   const dateLabel = occurredAt.toISOString().slice(0, 10);
@@ -321,10 +384,19 @@ async function startFromImage(message: TelegramMessage) {
     : `No capture date in file — using send time: ${dateLabel}`;
 
   if (hasGps) {
-    await sendMessage(
-      chatId,
-      `Got it — ${dateNote}\nLocation: ${lat!.toFixed(4)}, ${lng!.toFixed(4)}\n\n${PEOPLE_PROMPT}`,
-    );
+    await sendMessage(chatId, `Got it — ${dateNote}`);
+    await askForLocationName(chatId, {
+      chat_id: chatId,
+      step: "awaiting_location_name",
+      file_id: fileId,
+      file_unique_id: fileUniqueId,
+      mime_type: mime,
+      occurred_at: occurredAt.toISOString(),
+      lat,
+      lng,
+      maps_url: mapsUrlFromCoords(lat!, lng!),
+      location_name: pinLabel,
+    });
   } else {
     await sendMessage(chatId, `${dateNote}\n\n${LOCATION_PROMPT}`);
   }
@@ -339,15 +411,16 @@ async function handleLocationStep(message: TelegramMessage, draft: BotDraft) {
       message.venue.location.longitude,
       message.venue.title,
     );
-    await upsertDraft({
+    const next: BotDraft = {
       ...draft,
-      step: "awaiting_people",
+      step: "awaiting_location_name",
       lat: loc.lat,
       lng: loc.lng,
       maps_url: loc.maps_url,
       location_name: loc.location_name,
-    });
-    await sendMessage(chatId, PEOPLE_PROMPT);
+    };
+    await upsertDraft(next);
+    await askForLocationName(chatId, next);
     return;
   }
 
@@ -356,15 +429,16 @@ async function handleLocationStep(message: TelegramMessage, draft: BotDraft) {
       message.location.latitude,
       message.location.longitude,
     );
-    await upsertDraft({
+    const next: BotDraft = {
       ...draft,
-      step: "awaiting_people",
+      step: "awaiting_location_name",
       lat: loc.lat,
       lng: loc.lng,
       maps_url: loc.maps_url,
       location_name: loc.location_name,
-    });
-    await sendMessage(chatId, PEOPLE_PROMPT);
+    };
+    await upsertDraft(next);
+    await askForLocationName(chatId, next);
     return;
   }
 
@@ -383,15 +457,16 @@ async function handleLocationStep(message: TelegramMessage, draft: BotDraft) {
     return;
   }
 
-  await upsertDraft({
+  const next: BotDraft = {
     ...draft,
-    step: "awaiting_people",
+    step: "awaiting_location_name",
     lat: parsed.lat,
     lng: parsed.lng,
     maps_url: parsed.maps_url,
     location_name: parsed.location_name,
-  });
-  await sendMessage(chatId, PEOPLE_PROMPT);
+  };
+  await upsertDraft(next);
+  await askForLocationName(chatId, next);
 }
 
 export async function handleTelegramUpdate(update: TelegramUpdate) {
@@ -462,6 +537,11 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
     if (draft.step === "awaiting_location") {
       await handleLocationStep(message, draft);
+      return;
+    }
+
+    if (draft.step === "awaiting_location_name") {
+      await handleLocationNameStep(message, draft);
       return;
     }
 

@@ -55,7 +55,10 @@ export type TelegramUpdate = {
   message?: TelegramMessage;
 };
 
-export type BotDraftStep = "awaiting_location" | "awaiting_people";
+export type BotDraftStep =
+  | "awaiting_location"
+  | "awaiting_location_name"
+  | "awaiting_people";
 
 export type BotDraft = {
   chat_id: number;
