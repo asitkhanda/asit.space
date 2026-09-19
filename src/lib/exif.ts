@@ -55,7 +55,6 @@ export async function readExifMeta(buffer: ArrayBuffer): Promise<ExifMeta> {
     const data = (await exifr.parse(buffer, {
       gps: true,
       exif: true,
-      ifd0: true,
       reviveValues: true,
       translateKeys: true,
       // HEIC: EXIF may sit later in the file than JPEG
