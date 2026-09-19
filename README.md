@@ -7,6 +7,7 @@ Personal event device — a one-post-at-a-time timeline of outings, movies, desi
 - Next.js (App Router) + Tailwind CSS
 - Supabase (Postgres, Auth magic link, Storage)
 - GSAP + Motion
+- Cloudflare Workers via `@opennextjs/cloudflare`
 
 ## Setup
 
@@ -16,6 +17,21 @@ Personal event device — a one-post-at-a-time timeline of outings, movies, desi
    - Site URL: `http://localhost:3000` (and later `https://asit.space`)
    - Redirect URLs: `http://localhost:3000/auth/callback`, `https://asit.space/auth/callback`
 4. `npm install && npm run dev`
+
+## Cloudflare deploy
+
+Worker name is `asit-dot-space` (must match `WORKER_SELF_REFERENCE` in `wrangler.jsonc`).
+
+In Cloudflare Workers Builds, use:
+
+- **Build command:** `npm run build`
+- **Deploy command:** `npx opennextjs-cloudflare deploy`
+
+Do **not** use bare `npx wrangler deploy` — that re-runs interactive migrate and can bind the wrong worker name.
+
+Set production secrets in the Cloudflare dashboard (same keys as `.env.example`).
+
+Local Workers preview: `npm run preview` · Deploy: `npm run deploy`
 
 ## Routes
 
