@@ -31,35 +31,6 @@ export async function getPublishedPosts(): Promise<PostWithPeople[]> {
   }));
 }
 
-export async function getAllPostsAdmin(): Promise<PostWithPeople[]> {
-  const supabase = await createClient();
-  const { data: posts, error } = await supabase
-    .from("posts")
-    .select("*")
-    .order("occurred_at", { ascending: false });
-
-  if (error || !posts?.length) return [];
-
-  const ids = posts.map((p) => p.id);
-  const { data: people } = await supabase
-    .from("people")
-    .select("*")
-    .in("post_id", ids)
-    .order("sort_order", { ascending: true });
-
-  const byPost = new Map<string, Person[]>();
-  (people ?? []).forEach((person) => {
-    const list = byPost.get(person.post_id) ?? [];
-    list.push(person as Person);
-    byPost.set(person.post_id, list);
-  });
-
-  return (posts as Post[]).map((post) => ({
-    ...post,
-    people: byPost.get(post.id) ?? [],
-  }));
-}
-
 export async function getPostById(id: string): Promise<PostWithPeople | null> {
   const supabase = await createClient();
   const { data: post } = await supabase

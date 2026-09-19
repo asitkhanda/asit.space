@@ -362,7 +362,7 @@ function EmptyScreen() {
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#1a1a1a]">
       <p className="font-pixel text-[10px] text-white/60">NO SIGNAL</p>
       <p className="text-sm text-white/40 max-w-[220px]">
-        Moments will appear here once posted from the studio.
+        Moments will appear here once posted.
       </p>
     </div>
   );

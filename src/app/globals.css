@@ -554,25 +554,6 @@ button.person-name:active {
   }
 }
 
-/* Studio pages stay readable on white */
-.studio-shell {
-  background: #f4f2ef;
-  color: #1a1816;
-}
-
-/* Studio form surfaces (light theme aliases) */
-.metal-surface {
-  background: #e8e6e3;
-  border: 1px solid #cfcbc6;
-  box-shadow: var(--inset-stack);
-}
-
-.metal-pill {
-  background: linear-gradient(180deg, #e4e1dc 0%, #d9d6d2 100%);
-  border: 1px solid #b8b4ae;
-  box-shadow: var(--shine-chip);
-}
-
 .accent-dial {
   background: linear-gradient(180deg, var(--heart-from), var(--heart-to));
   border: 1px solid var(--heart-border);
