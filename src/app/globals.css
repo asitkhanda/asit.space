@@ -133,6 +133,16 @@ body {
   overflow: hidden;
   background: #111;
   z-index: 1;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+  border: 1.5px solid var(--screen-border);
+  border-radius: 24px;
+  box-shadow: var(--inset-stack), var(--shine-chip);
+  overflow: hidden;
+  background: #111;
+  z-index: 1;
 }
 
 /*

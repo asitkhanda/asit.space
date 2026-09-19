@@ -195,6 +195,7 @@ export function TimelineDevice({
             <div
               ref={screenRef}
               className="device-screen relative aspect-[3/4] w-full"
+              onContextMenu={(e) => e.preventDefault()}
             >
               {post ? (
                 <PostPhoto
@@ -282,6 +283,7 @@ export function TimelineDevice({
               <div
                 ref={screenRef}
                 className="device-screen absolute left-6 top-6 z-[1] h-[721px] w-[506px]"
+                onContextMenu={(e) => e.preventDefault()}
               >
                 {post ? (
                   <PostPhoto

@@ -1,6 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import type { SyntheticEvent } from "react";
+
+const protectClass =
+  "select-none [-webkit-user-drag:none] [-webkit-touch-callout:none]";
+
+function blockSave(e: SyntheticEvent) {
+  e.preventDefault();
+}
 
 export function PostPhoto({
   src,
@@ -16,12 +24,20 @@ export function PostPhoto({
   priority?: boolean;
 }) {
   const isLocal = src.startsWith("/");
+  const merged = `${protectClass} ${className ?? "object-cover"}`;
 
   if (isLocal) {
     return (
       // Local demo assets / SVGs — avoid next/image optimizer quirks
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt={alt} className={`absolute inset-0 h-full w-full object-cover ${className ?? ""}`} />
+      <img
+        src={src}
+        alt={alt}
+        draggable={false}
+        onContextMenu={blockSave}
+        onDragStart={blockSave}
+        className={`absolute inset-0 h-full w-full object-cover ${merged}`}
+      />
     );
   }
 
@@ -31,7 +47,10 @@ export function PostPhoto({
       alt={alt}
       fill
       priority={priority}
-      className={className ?? "object-cover"}
+      draggable={false}
+      onContextMenu={blockSave}
+      onDragStart={blockSave}
+      className={merged}
       sizes={sizes}
     />
   );

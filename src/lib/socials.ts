@@ -4,7 +4,7 @@ export const SOCIAL_LINKS: SocialLink[] = [
   {
     id: "portfolio",
     label: "Portfolio",
-    href: "https://asitkhanda.com",
+    href: "https://asit.design",
     icon: "portfolio",
   },
   {
@@ -16,7 +16,7 @@ export const SOCIAL_LINKS: SocialLink[] = [
   {
     id: "ai",
     label: "AI Stuff",
-    href: "https://asitkhanda.com",
+    href: "https://asit.work",
     icon: "ai",
   },
   {
@@ -28,13 +28,13 @@ export const SOCIAL_LINKS: SocialLink[] = [
   {
     id: "email",
     label: "Email",
-    href: "mailto:asitkhanda@gmail.com",
+    href: "mailto:asit@hey.com",
     icon: "email",
   },
   {
     id: "blog",
     label: "Blog",
-    href: "https://asitkhanda.com",
+    href: "https://asit.blog",
     icon: "blog",
   },
 ];
