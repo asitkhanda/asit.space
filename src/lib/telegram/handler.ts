@@ -282,12 +282,16 @@ async function startFromImage(message: TelegramMessage) {
   let occurredAt = new Date(message.date * 1000);
   let lat: number | null = null;
   let lng: number | null = null;
+  let usedExifDate = false;
 
   try {
     const file = await getFile(fileId);
     const buffer = await downloadFile(file.file_path!);
     const exif = await readExifMeta(buffer);
-    if (exif.occurredAt) occurredAt = exif.occurredAt;
+    if (exif.occurredAt) {
+      occurredAt = exif.occurredAt;
+      usedExifDate = true;
+    }
     lat = exif.lat;
     lng = exif.lng;
   } catch (err) {
@@ -311,13 +315,18 @@ async function startFromImage(message: TelegramMessage) {
       : null,
   });
 
+  const dateLabel = occurredAt.toISOString().slice(0, 10);
+  const dateNote = usedExifDate
+    ? `Date from photo: ${dateLabel}`
+    : `No capture date in file — using send time: ${dateLabel}`;
+
   if (hasGps) {
     await sendMessage(
       chatId,
-      `Got it — ${occurredAt.toISOString().slice(0, 10)} @ ${lat!.toFixed(4)}, ${lng!.toFixed(4)}\n\n${PEOPLE_PROMPT}`,
+      `Got it — ${dateNote}\nLocation: ${lat!.toFixed(4)}, ${lng!.toFixed(4)}\n\n${PEOPLE_PROMPT}`,
     );
   } else {
-    await sendMessage(chatId, LOCATION_PROMPT);
+    await sendMessage(chatId, `${dateNote}\n\n${LOCATION_PROMPT}`);
   }
 }
 
