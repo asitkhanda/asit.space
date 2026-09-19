@@ -41,6 +41,8 @@ Local tip: use a tunnel (e.g. Cloudflare Tunnel / ngrok) so Telegram can reach y
 
 Worker name is `asit-dot-space` (must match `WORKER_SELF_REFERENCE` in `wrangler.jsonc`).
 
+`workers_dev` and `preview_urls` are set to `false` so the app is only reachable on your custom domain (`asit.space`), not `*.workers.dev`.
+
 In Cloudflare Workers Builds:
 
 - **Build command:** `npx @opennextjs/cloudflare build`
