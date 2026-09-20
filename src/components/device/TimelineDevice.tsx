@@ -178,20 +178,27 @@ export function TimelineDevice({
       ref={rootRef}
       className="relative min-h-dvh w-full bg-stage text-ink lg:h-dvh lg:overflow-hidden"
     >
-      {/* Mobile / tablet layout */}
-      <div className="lg:hidden px-4 py-6 md:px-10">
+      {/*
+        Mobile / tablet layout.
+        Tablet portrait: width-driven 3:4 screen overflows the viewport —
+        cap the column so screen height fits under chrome (~20rem).
+      */}
+      <div className="lg:hidden px-4 py-6 md:px-10 md:max-lg:portrait:box-border md:max-lg:portrait:flex md:max-lg:portrait:h-dvh md:max-lg:portrait:flex-col md:max-lg:portrait:overflow-hidden md:max-lg:portrait:py-4">
         <header
           data-boot="chrome"
-          className="flex items-center justify-between gap-4 mb-6"
+          className="flex shrink-0 items-center justify-between gap-4 mb-6 md:max-lg:portrait:mb-3"
         >
-          <h1 className="text-[30px] md:text-[40px] font-semibold tracking-tight text-black">
+          <h1 className="text-[30px] md:text-[40px] md:max-lg:portrait:text-[32px] font-semibold tracking-tight text-black">
             HEY THERE!
           </h1>
           <MobileSocials links={SOCIAL_LINKS} />
         </header>
 
-        <div className="flex w-full max-w-[734px] mx-auto flex-col gap-3 md:gap-4">
-          <div data-boot="chassis" className="device-chassis relative p-4 md:p-6">
+        <div className="mx-auto flex w-full max-w-[734px] flex-col gap-3 md:gap-4 md:max-lg:portrait:max-w-[min(734px,calc((100dvh-20rem)*0.75+2.5rem))] md:max-lg:portrait:min-h-0 md:max-lg:portrait:flex-1 md:max-lg:portrait:justify-center">
+          <div
+            data-boot="chassis"
+            className="device-chassis relative shrink-0 p-4 md:p-6 md:max-lg:portrait:p-5"
+          >
             <div
               ref={screenRef}
               className="device-screen relative aspect-[3/4] w-full"
@@ -228,7 +235,7 @@ export function TimelineDevice({
             </div>
           </div>
 
-          <div className="flex items-stretch justify-between gap-3">
+          <div className="flex shrink-0 items-stretch justify-between gap-3">
             <div className="min-w-0 flex-1 overflow-hidden">
               <MonthDots
                 year={year}
