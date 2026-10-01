@@ -21,7 +21,7 @@ export default async function ArchivePage() {
           href="/"
           className="social-pill rounded-full px-4 py-2.5 text-sm"
         >
-          Back to device
+          Home
         </Link>
       </div>
 
