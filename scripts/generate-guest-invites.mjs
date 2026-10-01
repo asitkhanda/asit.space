@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 /**
- * Offline-friendly guest invite + QR generator.
+ * Shared multi-use guest invite + QR generator.
  *
  * Usage:
- *   node --env-file=.env.local scripts/generate-guest-invites.mjs 10 "Design Meetup"
- *   node --env-file=.env.local scripts/generate-guest-invites.mjs 5
+ *   node --env-file=.env.local scripts/generate-guest-invites.mjs 30 "Design Meetup"
+ *   node --env-file=.env.local scripts/generate-guest-invites.mjs 20
  *
- * Writes:
- *   - tmp/guest-invites/<timestamp>/invites.csv
- *   - tmp/guest-invites/<timestamp>/qr/<token>.png  (if `qrcode` is available)
+ * Args:
+ *   1) maxUses  — how many submissions this one QR accepts (default 30)
+ *   2) label    — optional event label
  *
- * Install optional QR dependency once:
- *   npm i -D qrcode
+ * Writes one invite + one QR (same URL for every printed postcard):
+ *   - tmp/guest-invites/<timestamp>/invite.txt
+ *   - tmp/guest-invites/<timestamp>/qr.png  (if `qrcode` is available)
+ *
+ * Optional: npm i -D qrcode
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
@@ -19,7 +22,7 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 
-const count = Math.max(1, Number(process.argv[2] || 10));
+const maxUses = Math.max(1, Number(process.argv[2] || 30));
 const label = process.argv[3] || null;
 const site =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
@@ -35,37 +38,40 @@ const supabase = createClient(url, key, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const rows = Array.from({ length: count }, () => ({
-  token: randomUUID().replace(/-/g, ""),
-  label,
-}));
+const token = randomUUID().replace(/-/g, "");
 
 const { data, error } = await supabase
   .from("guest_invites")
-  .insert(rows)
-  .select("token, label, created_at");
+  .insert({
+    token,
+    label,
+    max_uses: maxUses,
+    use_count: 0,
+  })
+  .select("token, label, max_uses, created_at")
+  .single();
 
-if (error) {
-  console.error(error.message);
+if (error || !data) {
+  console.error(error?.message ?? "Insert failed");
   process.exit(1);
 }
 
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const outDir = path.join(process.cwd(), "tmp", "guest-invites", stamp);
-const qrDir = path.join(outDir, "qr");
-await mkdir(qrDir, { recursive: true });
+await mkdir(outDir, { recursive: true });
 
-const invites = data ?? [];
-const csv = [
-  "token,label,url,created_at",
-  ...invites.map((row) => {
-    const inviteUrl = `${site}/guest/${row.token}`;
-    const safeLabel = (row.label ?? "").replaceAll(",", " ");
-    return `${row.token},${safeLabel},${inviteUrl},${row.created_at}`;
-  }),
+const inviteUrl = `${site}/guest/${data.token}`;
+const summary = [
+  `label: ${data.label ?? "(none)"}`,
+  `max_uses: ${data.max_uses}`,
+  `token: ${data.token}`,
+  `url: ${inviteUrl}`,
+  `created_at: ${data.created_at}`,
+  "",
+  "Print this single QR on every postcard in the batch.",
 ].join("\n");
 
-await writeFile(path.join(outDir, "invites.csv"), csv, "utf8");
+await writeFile(path.join(outDir, "invite.txt"), summary, "utf8");
 
 let qrcode;
 try {
@@ -75,22 +81,18 @@ try {
 }
 
 if (qrcode) {
-  for (const row of invites) {
-    const inviteUrl = `${site}/guest/${row.token}`;
-    const file = path.join(qrDir, `${row.token}.png`);
-    await qrcode.toFile(file, inviteUrl, {
-      width: 512,
-      margin: 2,
-      color: { dark: "#111111", light: "#ffffff" },
-    });
-  }
-  console.log(`Wrote ${invites.length} QR PNGs → ${qrDir}`);
+  const file = path.join(outDir, "qr.png");
+  await qrcode.toFile(file, inviteUrl, {
+    width: 512,
+    margin: 2,
+    color: { dark: "#111111", light: "#ffffff" },
+  });
+  console.log(`Wrote QR → ${file}`);
 } else {
-  console.log("qrcode package not installed — CSV URLs only.");
+  console.log("qrcode package not installed — URL only.");
   console.log("Optional: npm i -D qrcode");
 }
 
-console.log(`Wrote CSV → ${path.join(outDir, "invites.csv")}`);
-for (const row of invites) {
-  console.log(`${site}/guest/${row.token}`);
-}
+console.log(`Wrote details → ${path.join(outDir, "invite.txt")}`);
+console.log(inviteUrl);
+console.log(`Accepts up to ${data.max_uses} submissions.`);

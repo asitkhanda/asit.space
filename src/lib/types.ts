@@ -38,6 +38,8 @@ export type GuestInvite = {
   created_at: string;
   used_at: string | null;
   entry_id: string | null;
+  max_uses: number;
+  use_count: number;
 };
 
 export type GuestEntry = {

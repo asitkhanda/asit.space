@@ -11,10 +11,12 @@ import {
 
 type Props = {
   token: string;
-  label: string | null;
 };
 
-export function GuestEntryForm({ token, label }: Props) {
+const lineField =
+  "w-full border-0 border-b border-[var(--color-postcard-ink)]/40 bg-transparent px-0 py-2 text-base text-black/80 outline-none placeholder:text-black/30 focus:border-[var(--color-postcard-ink)]";
+
+export function GuestEntryForm({ token }: Props) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
@@ -24,6 +26,7 @@ export function GuestEntryForm({ token, label }: Props) {
   const [photo, setPhoto] = useState<File | null>(null);
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [compressing, setCompressing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
@@ -31,6 +34,10 @@ export function GuestEntryForm({ token, label }: Props) {
     () => (photo ? URL.createObjectURL(photo) : null),
     [photo],
   );
+
+  const day = String(new Date().getDate()).padStart(2, "0");
+  const year = new Date().getFullYear();
+  const ink = "text-[var(--color-postcard-ink)]";
 
   async function captureLocation() {
     if (!navigator.geolocation) {
@@ -53,7 +60,12 @@ export function GuestEntryForm({ token, label }: Props) {
           if (response.ok) {
             const data = (await response.json()) as {
               name?: string;
-              address?: { city?: string; town?: string; suburb?: string; neighbourhood?: string };
+              address?: {
+                city?: string;
+                town?: string;
+                suburb?: string;
+                neighbourhood?: string;
+              };
             };
             const place =
               data.name ||
@@ -82,7 +94,7 @@ export function GuestEntryForm({ token, label }: Props) {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (submitting) return;
+    if (submitting || compressing) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -93,156 +105,262 @@ export function GuestEntryForm({ token, label }: Props) {
       body.set("location_name", locationName);
       if (lat != null) body.set("lat", String(lat));
       if (lng != null) body.set("lng", String(lng));
-      if (photo) body.set("photo", photo);
+
+      let uploadPhoto = photo;
+      if (photo) {
+        setCompressing(true);
+        try {
+          const { compressGuestPhoto } = await import(
+            "@/lib/compress-guest-photo"
+          );
+          const result = await compressGuestPhoto(photo);
+          uploadPhoto = result.file;
+        } finally {
+          setCompressing(false);
+        }
+      }
+
+      if (uploadPhoto) body.set("photo", uploadPhoto);
 
       const response = await fetch("/api/guest/submit", {
         method: "POST",
         body,
+        signal: AbortSignal.timeout(45000),
       });
-      const data = (await response.json()) as { error?: string };
+      const data = (await response.json()) as { error?: string; ok?: boolean };
+
       if (!response.ok) {
         setError(data.error || "Something went wrong.");
         setSubmitting(false);
         return;
       }
       setDone(true);
+      setSubmitting(false);
       router.refresh();
-    } catch {
-      setError("Network error — try again.");
+    } catch (error) {
+      const timedOut =
+        error instanceof DOMException && error.name === "TimeoutError";
+      setError(
+        timedOut
+          ? "That took too long — try again without a huge photo."
+          : error instanceof Error
+            ? error.message
+            : "Network error — try again.",
+      );
+      setCompressing(false);
       setSubmitting(false);
     }
   }
 
   if (done) {
     return (
-      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 rounded-[28px] bg-white px-6 py-10 text-center shadow-[0_24px_60px_rgba(0,0,0,0.12)] ring-1 ring-black/5">
-        <span className="flex size-14 items-center justify-center rounded-full bg-black text-white">
-          <HugeiconsIcon icon={Tick02Icon} size={28} strokeWidth={2.2} color="currentColor" />
-        </span>
-        <h1 className="text-2xl font-semibold tracking-tight">Postcard sent</h1>
-        <p className="text-sm text-black/55">
-          Thanks{name ? `, ${name.split(" ")[0]}` : ""}. Your mini-postcard is in the gallery.
-        </p>
-        <a
-          href="/postcards"
-          className="mt-2 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white"
-        >
-          See the wall
-        </a>
+      <div className="mx-auto w-full max-w-2xl [filter:drop-shadow(0_18px_40px_rgba(0,0,0,0.16))]">
+        <div className="stamp-perforation bg-[var(--color-postcard-cream)] !p-3">
+          <div className="flex flex-col items-center gap-4 px-10 py-14 text-center sm:px-14">
+            <span className="flex size-14 items-center justify-center rounded-full bg-[var(--color-postcard-ink)] text-white">
+              <HugeiconsIcon
+                icon={Tick02Icon}
+                size={28}
+                strokeWidth={2.2}
+                color="currentColor"
+              />
+            </span>
+            <h1 className="font-postcard-serif text-3xl font-bold tracking-tight text-[var(--color-postcard-ink)]">
+              Postcard sent
+            </h1>
+            <p className="max-w-sm text-sm leading-relaxed text-black/55">
+              Thanks{name ? `, ${name.split(" ")[0]}` : ""}. Your mini-postcard
+              is in the gallery.
+            </p>
+            <a
+              href="/postcards"
+              className="mt-2 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white"
+            >
+              See the wall
+            </a>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="mx-auto w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_60px_rgba(0,0,0,0.12)] ring-1 ring-black/5 md:p-8"
-    >
-      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-black/40">
-        Guest postcard
-      </p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">Leave a mark</h1>
-      <p className="mt-2 text-sm text-black/55">
-        {label
-          ? `From ${label} — one-time invite.`
-          : "One-time invite from Asit’s postcard."}{" "}
-        Name is required; note, location, and photo are recommended.
-      </p>
-
-      <label className="mt-8 block text-sm font-medium">
-        Name
-        <input
-          required
-          maxLength={80}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="What should we call you?"
-          className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f8] px-4 py-3 text-base outline-none focus:border-black/30"
-        />
-      </label>
-
-      <label className="mt-5 block text-sm font-medium">
-        Short note
-        <span className="ml-2 text-xs font-normal text-black/40">optional</span>
-        <textarea
-          maxLength={280}
-          rows={3}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          placeholder="A line from tonight…"
-          className="mt-2 w-full resize-none rounded-2xl border border-black/10 bg-[#f7f7f8] px-4 py-3 text-base outline-none focus:border-black/30"
-        />
-        <span className="mt-1 block text-right text-[11px] text-black/35">
-          {note.length}/280
-        </span>
-      </label>
-
-      <div className="mt-2">
-        <div className="flex items-center justify-between gap-3">
-          <label className="text-sm font-medium">
-            Location
-            <span className="ml-2 text-xs font-normal text-black/40">recommended</span>
-          </label>
-          <button
-            type="button"
-            onClick={captureLocation}
-            disabled={locating}
-            className="inline-flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-          >
-            <HugeiconsIcon icon={Location01Icon} size={14} strokeWidth={2.2} color="currentColor" />
-            {locating ? "Finding…" : "Use current"}
-          </button>
-        </div>
-        <input
-          maxLength={120}
-          value={locationName}
-          onChange={(event) => setLocationName(event.target.value)}
-          placeholder="Where are you right now?"
-          className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f8] px-4 py-3 text-base outline-none focus:border-black/30"
-        />
-      </div>
-
-      <div className="mt-5">
-        <p className="text-sm font-medium">
-          Photo
-          <span className="ml-2 text-xs font-normal text-black/40">recommended</span>
-        </p>
-        <label className="mt-2 flex cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-[22px] border border-dashed border-black/15 bg-[#f7f7f8] aspect-[4/3]">
-          {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt="Preview" className="h-full w-full object-cover" />
-          ) : (
-            <>
-              <HugeiconsIcon icon={Camera01Icon} size={28} strokeWidth={1.8} color="currentColor" />
-              <span className="text-sm text-black/50">Tap to add a photo</span>
-            </>
-          )}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
-              setPhoto(file);
-            }}
-          />
-        </label>
-      </div>
-
-      {error ? (
-        <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <button
-        type="submit"
-        disabled={submitting || !name.trim()}
-        className="mt-6 w-full rounded-full bg-black py-3.5 text-sm font-medium text-white disabled:opacity-40"
+    <div className="mx-auto w-full max-w-2xl [filter:drop-shadow(0_18px_40px_rgba(0,0,0,0.16))]">
+      <form
+        onSubmit={onSubmit}
+        className="stamp-perforation bg-[var(--color-postcard-cream)] !p-3"
       >
-        {submitting ? "Sending…" : "Send postcard"}
-      </button>
-    </form>
+        <div className="px-6 py-6 sm:px-8 sm:py-7 md:px-10 md:py-8">
+          <div>
+            <h1
+              className={`font-postcard-serif text-3xl font-bold tracking-tight sm:text-4xl ${ink}`}
+            >
+              Post Card
+            </h1>
+            <p
+              className={`mt-1 text-[9px] font-medium uppercase tracking-[0.16em] ${ink}`}
+            >
+              Leave a mark
+            </p>
+          </div>
+
+          <p className="mt-5 max-w-xl text-sm leading-relaxed text-black/60">
+            Welcome to my small corner of the Internet. Since you have received a
+            postcard from me, it would amazing if you leave a note on my corner as
+            well! Completely optional. Pinky Promise.
+          </p>
+
+          <label className="group mt-5 block cursor-pointer">
+            <span className="sr-only">Add a photo</span>
+            <div className="stamp-perforation !p-2 transition group-hover:brightness-[0.98]">
+              <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#3a3530] sm:aspect-[3/2]">
+                {previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-white/80">
+                    <HugeiconsIcon
+                      icon={Camera01Icon}
+                      size={36}
+                      strokeWidth={1.6}
+                      color="currentColor"
+                    />
+                    <div className="text-center">
+                      <p className="font-mono text-2xl font-semibold tracking-wide">
+                        {day}
+                      </p>
+                      <p className="mt-1 text-sm text-white/65">Tap to add a photo</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                setPhoto(file);
+              }}
+            />
+          </label>
+
+          <p className={`mt-3 text-[10px] leading-snug ${ink}`}>
+            *Highly encouraging you. Visuals always make lasting memories*
+          </p>
+
+          <div className="mt-6 grid gap-6 md:grid-cols-[1.15fr_1px_0.95fr] md:gap-0">
+            <div className="md:pr-7">
+              <p
+                className={`text-[10px] font-medium uppercase tracking-[0.18em] ${ink}`}
+              >
+                This space for writing
+              </p>
+              <p className="mt-1 text-xs text-black/40">
+                Optional but don&apos;t you wanna leave a message?
+              </p>
+              <textarea
+                maxLength={280}
+                rows={6}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="What did you think of me or how did you feel about today?"
+                className="mt-3 w-full resize-none border-0 bg-[repeating-linear-gradient(transparent,transparent_27px,rgba(91,132,177,0.28)_28px)] bg-[length:100%_28px] bg-origin-content px-0 py-0 text-[15px] leading-7 text-black/80 outline-none placeholder:text-black/30"
+              />
+              <span className="mt-1 block text-right text-[11px] text-black/35">
+                {note.length}/280
+              </span>
+            </div>
+
+            <div className="relative hidden md:block">
+              <div className="absolute inset-y-0 left-0 w-px bg-[var(--color-postcard-ink)]/70" />
+              <p
+                className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.22em] ${ink}`}
+              >
+                Hey There! · {year}
+              </p>
+            </div>
+
+            <div className="border-t border-[var(--color-postcard-ink)]/30 pt-5 md:border-t-0 md:pl-7 md:pt-0">
+              <p
+                className={`text-[10px] font-medium uppercase tracking-[0.18em] ${ink}`}
+              >
+                This side is for the address
+              </p>
+
+              <label className={`mt-4 block text-[10px] font-medium uppercase tracking-[0.14em] ${ink}`}>
+                Name
+                <input
+                  required
+                  maxLength={80}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="What should we call you?"
+                  className={`mt-1 ${lineField}`}
+                />
+              </label>
+
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-2">
+                  <label
+                    className={`text-[10px] font-medium uppercase tracking-[0.14em] ${ink}`}
+                  >
+                    Location
+                  </label>
+                  <button
+                    type="button"
+                    onClick={captureLocation}
+                    disabled={locating}
+                    className={`inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] ${ink} disabled:opacity-50`}
+                  >
+                    <HugeiconsIcon
+                      icon={Location01Icon}
+                      size={12}
+                      strokeWidth={2.2}
+                      color="currentColor"
+                    />
+                    {locating ? "Finding…" : "Use current"}
+                  </button>
+                </div>
+                <input
+                  maxLength={120}
+                  value={locationName}
+                  onChange={(event) => setLocationName(event.target.value)}
+                  placeholder="Where are you right now?"
+                  className={`mt-1 ${lineField}`}
+                />
+              </div>
+
+              {error ? (
+                <p
+                  className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+                  role="alert"
+                >
+                  {error}
+                </p>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={submitting || compressing || !name.trim()}
+                className="mt-8 w-full rounded-full bg-black py-3 text-sm font-medium text-white disabled:opacity-40 md:mt-10"
+              >
+                {compressing
+                  ? "Compressing photo…"
+                  : submitting
+                    ? "Sending…"
+                    : "Send postcard"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
   );
 }
