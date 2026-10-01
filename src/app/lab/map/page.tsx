@@ -1,12 +1,6 @@
-import { getPublishedPosts } from "@/lib/posts";
-import { MapTimeline } from "@/components/map/MapTimeline";
+import { redirect } from "next/navigation";
 
-export const metadata = {
-  title: "Lab · Map timeline — asit.space",
-  robots: { index: false, follow: false },
-};
-
-export default async function MapLabPage() {
-  const posts = await getPublishedPosts();
-  return <MapTimeline posts={posts} />;
+/** Map lab lived here during prototyping — home is the atlas now. */
+export default function MapLabRedirectPage() {
+  redirect("/");
 }

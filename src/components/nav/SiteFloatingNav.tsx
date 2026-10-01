@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSiteChrome } from "./SiteChromeContext";
 
 const NAV_LINKS = [
-  { href: "/lab/map", label: "Home" },
+  { href: "/", label: "Home" },
   { href: "/postcards", label: "Namaste" },
 ] as const;
 
@@ -29,14 +29,16 @@ export function SiteFloatingNav() {
           className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1.5 shadow-[0_10px_40px_rgba(0,0,0,0.12)] ring-1 ring-black/5 backdrop-blur-xl"
         >
           <Link
-            href="/lab/map"
+            href="/"
             className="mr-1 inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold tracking-tight text-black"
           >
             A Space
           </Link>
           {NAV_LINKS.map((link) => {
             const active =
-              pathname === link.href || pathname.startsWith(`${link.href}/`);
+              link.href === "/"
+                ? pathname === "/"
+                : pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
               <Link
                 key={link.href}
