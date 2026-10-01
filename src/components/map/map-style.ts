@@ -4,8 +4,8 @@ import type { PhaseLook } from "@/lib/map-phases";
 /** Active pin fill — soft paper on graphite. */
 export const PIN_SPOTLIGHT = "#f2ebe3";
 
-/** Honey yellow area glow under the active pin. */
-export const PIN_GLOW = "#f5c84c";
+/** Area glow under the active pin — coral so it reads on graphite. */
+export const PIN_GLOW = "#ff5a45";
 
 type GlowFeature = {
   type: "Feature";
@@ -25,12 +25,12 @@ const pinGlowSource = {
 
 /** Soft radial bands (metres) — annular rings so opacity does not stack harshly. */
 const GLOW_BANDS: Array<{ inner: number; outer: number; opacity: number }> = [
-  { inner: 0, outer: 5, opacity: 0.38 },
-  { inner: 5, outer: 10, opacity: 0.26 },
-  { inner: 10, outer: 16, opacity: 0.16 },
-  { inner: 16, outer: 24, opacity: 0.09 },
-  { inner: 24, outer: 34, opacity: 0.045 },
-  { inner: 34, outer: 46, opacity: 0.018 },
+  { inner: 0, outer: 12, opacity: 0.52 },
+  { inner: 12, outer: 24, opacity: 0.36 },
+  { inner: 24, outer: 40, opacity: 0.24 },
+  { inner: 40, outer: 60, opacity: 0.14 },
+  { inner: 60, outer: 85, opacity: 0.07 },
+  { inner: 85, outer: 115, opacity: 0.03 },
 ];
 
 /** Approximate circle polygon in metres around a lon/lat (CCW exterior). */
@@ -474,6 +474,7 @@ export function setPinGlow(
   lng: number | null,
   lat: number | null,
   located: boolean,
+  pulse = true,
 ) {
   const source = map.getSource("pin-glow") as
     | { setData: (data: typeof EMPTY_GLOW) => void }
@@ -481,11 +482,64 @@ export function setPinGlow(
   if (!source) return;
 
   if (!located || lng == null || lat == null) {
+    stopPinGlowPulse();
     source.setData(EMPTY_GLOW);
     return;
   }
 
   source.setData(glowCollection(lng, lat));
+
+  if (pulse) {
+    startPinGlowPulse(map);
+  } else {
+    stopPinGlowPulse();
+    if (map.getLayer("pin-glow")) {
+      map.setPaintProperty(
+        "pin-glow",
+        "fill-opacity",
+        ["get", "opacity"] as unknown as number,
+      );
+    }
+  }
+}
+
+let glowPulseRaf = 0;
+let glowPulseMap: import("mapbox-gl").Map | null = null;
+
+function stopPinGlowPulse() {
+  if (glowPulseRaf) cancelAnimationFrame(glowPulseRaf);
+  glowPulseRaf = 0;
+  glowPulseMap = null;
+}
+
+/** Breathe the fill opacity so the ground glow reads as a live beacon. */
+function startPinGlowPulse(map: import("mapbox-gl").Map) {
+  if (glowPulseMap === map && glowPulseRaf) return;
+
+  stopPinGlowPulse();
+  glowPulseMap = map;
+  const t0 = performance.now();
+
+  const tick = (now: number) => {
+    if (glowPulseMap !== map || !map.getLayer("pin-glow")) {
+      glowPulseRaf = 0;
+      glowPulseMap = null;
+      return;
+    }
+
+    // ~2.4s cycle — soft in/out, never fully gone
+    const wave = 0.5 + 0.5 * Math.sin(((now - t0) / 2400) * Math.PI * 2);
+    const factor = 0.55 + wave * 0.7;
+    map.setPaintProperty("pin-glow", "fill-opacity", [
+      "*",
+      ["get", "opacity"],
+      factor,
+    ] as unknown as number);
+
+    glowPulseRaf = requestAnimationFrame(tick);
+  };
+
+  glowPulseRaf = requestAnimationFrame(tick);
 }
 
 /** Shared tint for MapLibre OpenFreeMap buildings (cheap parity). */

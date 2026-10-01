@@ -167,7 +167,7 @@ export function MapProvider({
       if (disposed || readyRef.current) return;
       try {
         applyAtlasPhase(next, phase);
-        setPinGlow(next, active.lng, active.lat, active.located);
+        setPinGlow(next, active.lng, active.lat, active.located, !reducedMotion);
         const initial = cameraForTarget(active);
         const maxZoom = maxZoomRef.current;
         const camera: CameraTarget =
@@ -381,9 +381,22 @@ export function MapProvider({
   }, [map, phase, atlasMode, pageVisible]);
 
   useEffect(() => {
-    if (!map || !pageVisible) return;
-    setPinGlow(map, active.lng, active.lat, active.located);
-  }, [map, pageVisible, active.lng, active.lat, active.located]);
+    if (!map) return;
+    setPinGlow(
+      map,
+      active.lng,
+      active.lat,
+      active.located,
+      pageVisible && !reducedMotion,
+    );
+  }, [
+    map,
+    pageVisible,
+    active.lng,
+    active.lat,
+    active.located,
+    reducedMotion,
+  ]);
 
   return (
     <>
