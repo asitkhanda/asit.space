@@ -13,10 +13,10 @@ export function SiteFloatingNav() {
   const pathname = usePathname();
   const { placeName, weather, mapsUrl, onDarkSurface } = useSiteChrome();
 
-  const isNamaste =
-    pathname === "/postcards" || pathname.startsWith("/postcards/");
-  const canNavigate = Boolean(mapsUrl) && !isNamaste;
-  const showNavigateCluster = !isNamaste;
+  // Map chrome only — guest/postcard pages have no place to navigate to.
+  const isMapHome = pathname === "/";
+  const canNavigate = isMapHome && Boolean(mapsUrl);
+  const showNavigateCluster = isMapHome;
   const subtle = onDarkSurface ? "text-white/55" : "text-black/45";
   const subtleStrong = onDarkSurface ? "text-white/75" : "text-black/60";
 

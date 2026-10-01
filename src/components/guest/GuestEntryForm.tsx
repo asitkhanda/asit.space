@@ -154,8 +154,8 @@ export function GuestEntryForm({ token }: Props) {
 
   if (done) {
     return (
-      <div className="mx-auto w-full max-w-2xl [filter:drop-shadow(0_18px_40px_rgba(0,0,0,0.16))]">
-        <div className="stamp-perforation bg-[var(--color-postcard-cream)] !p-3">
+      <div className="mx-auto w-full max-w-2xl">
+        <div className="stamp-perforation !p-3 shadow-[0_18px_40px_rgba(0,0,0,0.16)]">
           <div className="flex flex-col items-center gap-4 px-10 py-14 text-center sm:px-14">
             <span className="flex size-14 items-center justify-center rounded-full bg-[var(--color-postcard-ink)] text-white">
               <HugeiconsIcon
@@ -185,10 +185,10 @@ export function GuestEntryForm({ token }: Props) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl [filter:drop-shadow(0_18px_40px_rgba(0,0,0,0.16))]">
+    <div className="mx-auto w-full max-w-2xl">
       <form
         onSubmit={onSubmit}
-        className="stamp-perforation bg-[var(--color-postcard-cream)] !p-3"
+        className="stamp-perforation !p-3 shadow-[0_18px_40px_rgba(0,0,0,0.16)]"
       >
         <div className="px-6 py-6 sm:px-8 sm:py-7 md:px-10 md:py-8">
           <div>
