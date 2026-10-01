@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FavouriteIcon, QrCodeIcon } from "@hugeicons/core-free-icons";
 
@@ -17,11 +17,6 @@ export function LikeButton({
   const [liked, setLiked] = useState(initiallyLiked);
   const [busy, setBusy] = useState(false);
   const [tick, setTick] = useState(false);
-
-  useEffect(() => {
-    setCount(initialCount);
-    setLiked(initiallyLiked);
-  }, [postId, initialCount, initiallyLiked]);
 
   async function onLike() {
     if (liked || busy) return;

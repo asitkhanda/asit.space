@@ -71,7 +71,7 @@ export function PeoplePanel({ people }: { people: Person[] }) {
 
   return (
     <aside className="people-card flex w-[277px] flex-col gap-6 px-8 py-6">
-      <h2 className="text-2xl font-medium text-black leading-tight">
+      <h2 className="font-serif text-2xl text-black leading-tight">
         People in this photo
       </h2>
       <div className="flex flex-col gap-2">
@@ -132,7 +132,7 @@ export function PeopleSheetTrigger({
               className="people-card absolute bottom-0 inset-x-0 rounded-t-[28px] rounded-b-none p-5 pb-10"
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-medium text-black">
+                <h2 className="font-serif text-lg text-black">
                   People in this photo
                 </h2>
                 <button

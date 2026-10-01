@@ -30,3 +30,24 @@ export type SocialLink = {
   href: string;
   icon: "portfolio" | "linkedin" | "ai" | "twitter" | "email" | "blog";
 };
+
+export type GuestInvite = {
+  id: string;
+  token: string;
+  label: string | null;
+  created_at: string;
+  used_at: string | null;
+  entry_id: string | null;
+};
+
+export type GuestEntry = {
+  id: string;
+  invite_id: string;
+  name: string;
+  note: string | null;
+  location_name: string | null;
+  lat: number | null;
+  lng: number | null;
+  photo_path: string | null;
+  created_at: string;
+};

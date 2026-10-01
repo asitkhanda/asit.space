@@ -188,7 +188,7 @@ export function TimelineDevice({
           data-boot="chrome"
           className="flex shrink-0 items-center justify-between gap-4 mb-6 md:max-lg:portrait:mb-3"
         >
-          <h1 className="text-[30px] md:text-[40px] md:max-lg:portrait:text-[32px] font-semibold tracking-tight text-black">
+          <h1 className="font-serif text-[30px] md:text-[40px] md:max-lg:portrait:text-[32px] tracking-tight text-black">
             HEY THERE!
           </h1>
           <MobileSocials links={SOCIAL_LINKS} />
@@ -274,7 +274,7 @@ export function TimelineDevice({
           >
             <h1
               data-boot="chrome"
-              className="absolute left-[80px] top-[48px] text-[40px] font-semibold leading-none text-black whitespace-nowrap"
+              className="font-serif absolute left-[80px] top-[48px] text-[40px] leading-none text-black whitespace-nowrap"
             >
               HEY THERE!
             </h1>
@@ -332,6 +332,7 @@ export function TimelineDevice({
               <div className="absolute left-[585px] top-[455px] z-[1]">
                 {post ? (
                   <LikeButton
+                    key={post.id}
                     postId={post.id}
                     initialCount={post.like_count}
                     initiallyLiked={Boolean(likedMap[post.id])}
@@ -369,7 +370,7 @@ export function TimelineDevice({
 function EmptyScreen() {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#1a1a1a]">
-      <p className="font-pixel text-[10px] text-white/60">NO SIGNAL</p>
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/60">No signal</p>
       <p className="text-sm text-white/40 max-w-[220px]">
         Moments will appear here once posted.
       </p>
