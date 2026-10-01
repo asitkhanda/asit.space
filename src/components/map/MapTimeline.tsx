@@ -294,7 +294,7 @@ export function MapTimeline({ posts }: { posts: PostWithPeople[] }) {
     <main
       className={`map-lab relative h-dvh min-h-dvh w-full overflow-hidden ${darkInk ? "text-white" : "text-black"}`}
       style={{ background: phase.sky }}
-      aria-label="A Space memory atlas"
+      aria-label="Hey There! memory atlas"
     >
       <MapProvider
         active={activeTarget}
