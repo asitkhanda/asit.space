@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { formatPostDate, photoPublicUrl } from "@/lib/format";
 import type { GuestEntry } from "@/lib/types";
+import { GuestSpecialBadge } from "@/components/guest/GuestSpecialBadge";
 
 type BackVariant = "correspondence" | "typed";
 type Side = "front" | "back";
@@ -93,6 +94,11 @@ function SouvenirFront({
           src={photo}
           alt={`Photo from ${entry.name}`}
           className="h-full w-full object-cover"
+        />
+        <GuestSpecialBadge
+          createdAt={entry.created_at}
+          tooltipAlign="end"
+          className="!bottom-auto !right-5 !top-5 sm:!right-6 sm:!top-6"
         />
         <p className="font-postcard-script absolute inset-x-4 bottom-5 text-center text-4xl leading-none text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] sm:bottom-7 sm:text-5xl md:text-6xl">
           {title}

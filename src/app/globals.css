@@ -685,3 +685,25 @@ button.person-name:active {
   color: #111;
   box-shadow: var(--inset-stack), var(--shine-raised);
 }
+
+@keyframes designup-chrome-shine-move {
+  0% {
+    background-position: 120% 0%;
+  }
+  55%,
+  100% {
+    background-position: -40% 100%;
+  }
+}
+
+.designup-chrome-shine {
+  animation: designup-chrome-shine-move 3.8s ease-in-out infinite;
+  will-change: background-position;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .designup-chrome-shine {
+    animation: none;
+    background-position: 40% 40%;
+  }
+}

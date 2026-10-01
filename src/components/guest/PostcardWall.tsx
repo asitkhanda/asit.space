@@ -7,6 +7,7 @@ import { AnimatePresence } from "motion/react";
 import { photoPublicUrl } from "@/lib/format";
 import type { GuestEntry } from "@/lib/types";
 import { PostcardPopout } from "@/components/guest/PostcardPopout";
+import { GuestSpecialBadge } from "@/components/guest/GuestSpecialBadge";
 
 function postcardTone(index: number) {
   const tones = ["#2a2a2c", "#3a3530", "#4a4540", "#2f3438", "#3c3834"];
@@ -62,6 +63,13 @@ function MiniPostcard({
             <span className="absolute right-1.5 top-1.5 font-mono text-[10px] font-semibold leading-none tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
               {stampValue(entry.created_at, index)}
             </span>
+
+            <GuestSpecialBadge
+              createdAt={entry.created_at}
+              compact
+              tooltipAlign="start"
+              className="!bottom-auto !left-2.5 !right-auto !top-2.5"
+            />
 
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-2 pb-2 pt-8">
               <p className="line-clamp-2 text-[11px] font-semibold leading-tight tracking-tight text-white">
