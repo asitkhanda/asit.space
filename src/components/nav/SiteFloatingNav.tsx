@@ -7,6 +7,9 @@ import { useSiteChrome } from "./SiteChromeContext";
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/postcards", label: "Namaste" },
+  { href: "https://asit.design", label: "Portfolio", external: true },
+  { href: "https://asit.blog", label: "Blog", external: true },
+  { href: "https://asit.work", label: "AI", external: true },
 ] as const;
 
 export function SiteFloatingNav() {
@@ -35,6 +38,23 @@ export function SiteFloatingNav() {
             Hey There!
           </Link>
           {NAV_LINKS.map((link) => {
+            const className =
+              "rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors text-black/55 hover:bg-black/5 hover:text-black";
+
+            if ("external" in link && link.external) {
+              return (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={className}
+                >
+                  {link.label}
+                </a>
+              );
+            }
+
             const active =
               link.href === "/"
                 ? pathname === "/"

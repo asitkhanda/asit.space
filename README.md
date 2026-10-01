@@ -70,13 +70,18 @@ Local Workers preview: `npm run preview` · Deploy: `npm run deploy`
 
 ## Guest postcards
 
-Print **one QR** on every postcard in a batch. That code opens `/guest/<token>` and accepts a capped number of submissions (default 30).
+Print a QR on each postcard. Shared batch: one QR, many uses. Distinct cards: one QR each.
 
-Generate a shared invite (writes details + optional QR PNG under `tmp/guest-invites/`):
+Generate invites (writes details + QR PNGs under `tmp/guest-invites/`):
 
 ```bash
 npm i -D qrcode   # optional, for PNG output
+
+# One shared QR (up to 30 submissions)
 npm run guest:invites -- 30 "Design Meetup"
+
+# Three distinct postcard QRs (1 use each)
+npm run guest:invites -- --count 3 --uses 1 "Postcard"
 ```
 
 SQL: `supabase/migrations/20260930_guest_postcards.sql` plus `20261001_multi_use_guest_invites.sql` (applied on asit-space).

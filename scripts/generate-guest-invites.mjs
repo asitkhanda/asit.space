@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 /**
- * Shared multi-use guest invite + QR generator.
+ * Guest invite + QR generator.
  *
- * Usage:
+ * Shared multi-use (one QR for a whole batch):
  *   node --env-file=.env.local scripts/generate-guest-invites.mjs 30 "Design Meetup"
- *   node --env-file=.env.local scripts/generate-guest-invites.mjs 20
  *
- * Args:
- *   1) maxUses  — how many submissions this one QR accepts (default 30)
- *   2) label    — optional event label
+ * Distinct postcards (one QR each):
+ *   node --env-file=.env.local scripts/generate-guest-invites.mjs --count 3
+ *   node --env-file=.env.local scripts/generate-guest-invites.mjs --count 3 --uses 1 "Postcard"
  *
- * Writes one invite + one QR (same URL for every printed postcard):
- *   - tmp/guest-invites/<timestamp>/invite.txt
- *   - tmp/guest-invites/<timestamp>/qr.png  (if `qrcode` is available)
+ * Writes under tmp/guest-invites/<timestamp>/:
+ *   - invites.txt
+ *   - qr-01.png … (if `qrcode` is available)
  *
  * Optional: npm i -D qrcode
  */
@@ -22,8 +21,49 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 
-const maxUses = Math.max(1, Number(process.argv[2] || 30));
-const label = process.argv[3] || null;
+function parseArgs(argv) {
+  let count = null;
+  let maxUses = null;
+  let label = null;
+  const positionals = [];
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--count") {
+      count = Math.max(1, Number(argv[++i] || 1));
+    } else if (arg === "--uses") {
+      maxUses = Math.max(1, Number(argv[++i] || 1));
+    } else if (arg === "--label") {
+      label = argv[++i] || null;
+    } else if (arg.startsWith("--")) {
+      console.error(`Unknown flag: ${arg}`);
+      process.exit(1);
+    } else {
+      positionals.push(arg);
+    }
+  }
+
+  // Legacy: `30 "Event"` → one shared invite with max_uses=30
+  if (count == null) {
+    count = 1;
+    if (positionals[0] != null && maxUses == null) {
+      maxUses = Math.max(1, Number(positionals[0] || 30));
+    }
+    if (positionals[1] != null && label == null) {
+      label = positionals[1];
+    }
+  } else if (positionals[0] != null && label == null) {
+    label = positionals[0];
+  }
+
+  if (maxUses == null) {
+    maxUses = count > 1 ? 1 : 30;
+  }
+
+  return { count, maxUses, label };
+}
+
+const { count, maxUses, label } = parseArgs(process.argv.slice(2));
 const site =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,20 +78,19 @@ const supabase = createClient(url, key, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const token = randomUUID().replace(/-/g, "");
+const rows = Array.from({ length: count }, (_, index) => ({
+  token: randomUUID().replace(/-/g, ""),
+  label: count === 1 ? label : label ? `${label} ${index + 1}` : null,
+  max_uses: maxUses,
+  use_count: 0,
+}));
 
 const { data, error } = await supabase
   .from("guest_invites")
-  .insert({
-    token,
-    label,
-    max_uses: maxUses,
-    use_count: 0,
-  })
-  .select("token, label, max_uses, created_at")
-  .single();
+  .insert(rows)
+  .select("token, label, max_uses, created_at");
 
-if (error || !data) {
+if (error || !data?.length) {
   console.error(error?.message ?? "Insert failed");
   process.exit(1);
 }
@@ -60,18 +99,25 @@ const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const outDir = path.join(process.cwd(), "tmp", "guest-invites", stamp);
 await mkdir(outDir, { recursive: true });
 
-const inviteUrl = `${site}/guest/${data.token}`;
-const summary = [
-  `label: ${data.label ?? "(none)"}`,
-  `max_uses: ${data.max_uses}`,
-  `token: ${data.token}`,
-  `url: ${inviteUrl}`,
-  `created_at: ${data.created_at}`,
+const lines = [
+  `site: ${site}`,
+  `count: ${data.length}`,
+  `max_uses each: ${maxUses}`,
   "",
-  "Print this single QR on every postcard in the batch.",
-].join("\n");
+];
 
-await writeFile(path.join(outDir, "invite.txt"), summary, "utf8");
+for (const [index, row] of data.entries()) {
+  const inviteUrl = `${site}/guest/${row.token}`;
+  const n = String(index + 1).padStart(2, "0");
+  lines.push(`#${n}`);
+  lines.push(`label: ${row.label ?? "(none)"}`);
+  lines.push(`token: ${row.token}`);
+  lines.push(`url: ${inviteUrl}`);
+  lines.push(`max_uses: ${row.max_uses}`);
+  lines.push("");
+}
+
+await writeFile(path.join(outDir, "invites.txt"), lines.join("\n"), "utf8");
 
 let qrcode;
 try {
@@ -81,18 +127,28 @@ try {
 }
 
 if (qrcode) {
-  const file = path.join(outDir, "qr.png");
-  await qrcode.toFile(file, inviteUrl, {
-    width: 512,
-    margin: 2,
-    color: { dark: "#111111", light: "#ffffff" },
-  });
-  console.log(`Wrote QR → ${file}`);
+  for (const [index, row] of data.entries()) {
+    const inviteUrl = `${site}/guest/${row.token}`;
+    const n = String(index + 1).padStart(2, "0");
+    const file = path.join(outDir, `qr-${n}.png`);
+    await qrcode.toFile(file, inviteUrl, {
+      width: 512,
+      margin: 2,
+      color: { dark: "#111111", light: "#ffffff" },
+    });
+    console.log(`Wrote QR → ${file}`);
+  }
 } else {
-  console.log("qrcode package not installed — URL only.");
+  console.log("qrcode package not installed — URLs only.");
   console.log("Optional: npm i -D qrcode");
 }
 
-console.log(`Wrote details → ${path.join(outDir, "invite.txt")}`);
-console.log(inviteUrl);
-console.log(`Accepts up to ${data.max_uses} submissions.`);
+console.log(`Wrote details → ${path.join(outDir, "invites.txt")}`);
+for (const row of data) {
+  console.log(`${site}/guest/${row.token}`);
+}
+console.log(
+  count === 1
+    ? `Accepts up to ${maxUses} submissions.`
+    : `${count} distinct postcards · ${maxUses} use(s) each.`,
+);
