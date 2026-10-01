@@ -63,7 +63,23 @@ Local Workers preview: `npm run preview` · Deploy: `npm run deploy`
 
 - `/` — public device feed
 - `/archive` — month archive
+- `/postcards` — guest mini-postcard wall
+- `/guest/[token]` — single-use guest entry form (from postcard QR)
 - `/api/telegram/webhook/[secret]` — Telegram webhook (not for browsers)
+- `/api/guest/submit` — guest postcard submit (server)
+
+## Guest postcards
+
+Hand out physical postcards with unique QR codes. Each code opens `/guest/<token>` once.
+
+Generate invites (writes CSV + optional QR PNGs under `tmp/guest-invites/`):
+
+```bash
+npm i -D qrcode   # optional, for PNG output
+npm run guest:invites -- 20 "Design Meetup"
+```
+
+SQL lives in `supabase/migrations/20260930_guest_postcards.sql` (already applied on the asit-space project).
 
 ## Notes
 
