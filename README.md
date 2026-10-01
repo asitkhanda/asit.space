@@ -61,28 +61,27 @@ Local Workers preview: `npm run preview` · Deploy: `npm run deploy`
 
 ## Routes
 
-- `/` — public device feed
+- `/` — memory atlas map
 - `/archive` — month archive
-- `/postcards` — guest mini-postcard wall
-- `/guest/[token]` — single-use guest entry form (from postcard QR)
+- `/postcards` — guest mini-postcard wall (Namaste)
+- `/guest/[token]` — shared guest entry form (from postcard QR)
 - `/api/telegram/webhook/[secret]` — Telegram webhook (not for browsers)
 - `/api/guest/submit` — guest postcard submit (server)
 
 ## Guest postcards
 
-Hand out physical postcards with unique QR codes. Each code opens `/guest/<token>` once.
+Print **one QR** on every postcard in a batch. That code opens `/guest/<token>` and accepts a capped number of submissions (default 30).
 
-Generate invites (writes CSV + optional QR PNGs under `tmp/guest-invites/`):
+Generate a shared invite (writes details + optional QR PNG under `tmp/guest-invites/`):
 
 ```bash
 npm i -D qrcode   # optional, for PNG output
-npm run guest:invites -- 20 "Design Meetup"
+npm run guest:invites -- 30 "Design Meetup"
 ```
 
-SQL lives in `supabase/migrations/20260930_guest_postcards.sql` (already applied on the asit-space project).
+SQL: `supabase/migrations/20260930_guest_postcards.sql` plus `20261001_multi_use_guest_invites.sql` (applied on asit-space).
 
 ## Notes
 
 - Desktop like button increments a sticky visitor-keyed counter.
-- Phone/tablet QR button is a visual shell for a future feature.
 - Location: EXIF GPS when present; otherwise Telegram pin or Google Maps link.

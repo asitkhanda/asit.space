@@ -9,10 +9,13 @@ type Props = {
 export default async function GuestInvitePage({ params }: Props) {
   const { token } = await params;
   const invite = await getInviteByToken(token);
+  const remaining =
+    invite != null ? Math.max(0, invite.max_uses - invite.use_count) : 0;
+  const isOpen = invite != null && remaining > 0;
 
   return (
-    <main className="min-h-dvh bg-[#e8e8ea] px-4 pb-10 pt-24 text-black md:px-8 md:pb-14 md:pt-28">
-      <div className="mx-auto mb-8 flex max-w-md items-center justify-end">
+    <main className="min-h-dvh bg-[#e8e4dc] px-4 pb-10 pt-24 text-black md:px-8 md:pb-14 md:pt-28">
+      <div className="mx-auto mb-8 flex max-w-2xl items-center justify-end">
         <Link href="/postcards" className="text-sm text-black/50 hover:text-black">
           Gallery
         </Link>
@@ -25,11 +28,11 @@ export default async function GuestInvitePage({ params }: Props) {
             This QR code isn’t valid. Ask Asit for a fresh postcard.
           </p>
         </div>
-      ) : invite.used_at ? (
+      ) : !isOpen ? (
         <div className="mx-auto max-w-md rounded-[28px] bg-white p-8 text-center shadow-[0_24px_60px_rgba(0,0,0,0.12)]">
-          <h1 className="text-2xl font-semibold">Already used</h1>
+          <h1 className="text-2xl font-semibold">Batch is full</h1>
           <p className="mt-2 text-sm text-black/55">
-            Each postcard QR works once. This one already left its mark.
+            This shared postcard QR already collected its {invite.max_uses} marks.
           </p>
           <Link
             href="/postcards"
@@ -39,7 +42,7 @@ export default async function GuestInvitePage({ params }: Props) {
           </Link>
         </div>
       ) : (
-        <GuestEntryForm token={invite.token} label={invite.label} />
+        <GuestEntryForm token={invite.token} />
       )}
     </main>
   );

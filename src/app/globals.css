@@ -69,9 +69,14 @@
   box-sizing: border-box;
 }
 
-html,
-body {
+html {
   height: 100%;
+}
+
+body {
+  /* Grow with content — a fixed height:100% body (flex column) clamps
+     main to the viewport and cuts page backgrounds off mid-postcard. */
+  min-height: 100%;
 }
 
 body {
@@ -106,40 +111,87 @@ body {
   font-weight: 500;
 }
 
-/* Postage-stamp scalloped edge — center fill + four edge strips with tooth cutouts */
+/* Postage-stamp scalloped edge — inset fill + four edge strips with tooth cutouts.
+   Edge strips MUST be positioned from the corners (not `left`/`right` alone, which
+   vertically centers the tile origin). Centered origins fail on tall cards and leave
+   transparent gaps along the perforations. Prefer background-color so bg-* utilities win. */
 .stamp-perforation {
   --stamp-r: 5px;
   --stamp-d: 10px;
-  background: #fff;
+  background-color: var(--color-postcard-cream);
   padding: 8px;
   -webkit-mask-image:
     linear-gradient(#000 0 0),
-    radial-gradient(circle at 50% 0, #0000 var(--stamp-r), #000 calc(var(--stamp-r) + 0.5px)),
-    radial-gradient(circle at 50% 100%, #0000 var(--stamp-r), #000 calc(var(--stamp-r) + 0.5px)),
-    radial-gradient(circle at 0 50%, #0000 var(--stamp-r), #000 calc(var(--stamp-r) + 0.5px)),
-    radial-gradient(circle at 100% 50%, #0000 var(--stamp-r), #000 calc(var(--stamp-r) + 0.5px));
+    radial-gradient(
+      circle at 50% 0,
+      #0000 var(--stamp-r),
+      #000 calc(var(--stamp-r) + 0.5px)
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      #0000 var(--stamp-r),
+      #000 calc(var(--stamp-r) + 0.5px)
+    ),
+    radial-gradient(
+      circle at 0 50%,
+      #0000 var(--stamp-r),
+      #000 calc(var(--stamp-r) + 0.5px)
+    ),
+    radial-gradient(
+      circle at 100% 50%,
+      #0000 var(--stamp-r),
+      #000 calc(var(--stamp-r) + 0.5px)
+    );
   -webkit-mask-size:
     calc(100% - var(--stamp-d)) calc(100% - var(--stamp-d)),
     var(--stamp-d) calc(var(--stamp-r) + 1px),
     var(--stamp-d) calc(var(--stamp-r) + 1px),
     calc(var(--stamp-r) + 1px) var(--stamp-d),
     calc(var(--stamp-r) + 1px) var(--stamp-d);
-  -webkit-mask-position: center, top, bottom, left, right;
+  -webkit-mask-position:
+    center,
+    top left,
+    bottom left,
+    top left,
+    top right;
   -webkit-mask-repeat: no-repeat, repeat-x, repeat-x, repeat-y, repeat-y;
+  -webkit-mask-composite: source-over;
   mask-image:
     linear-gradient(#000 0 0),
-    radial-gradient(circle at 50% 0, #0000 var(--stamp-r), #000 calc(var(--stamp-r) + 0.5px)),
-    radial-gradient(circle at 50% 100%, #0000 var(--stamp-r), #000 calc(var(--stamp-r) + 0.5px)),
-    radial-gradient(circle at 0 50%, #0000 var(--stamp-r), #000 calc(var(--stamp-r) + 0.5px)),
-    radial-gradient(circle at 100% 50%, #0000 var(--stamp-r), #000 calc(var(--stamp-r) + 0.5px));
+    radial-gradient(
+      circle at 50% 0,
+      #0000 var(--stamp-r),
+      #000 calc(var(--stamp-r) + 0.5px)
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      #0000 var(--stamp-r),
+      #000 calc(var(--stamp-r) + 0.5px)
+    ),
+    radial-gradient(
+      circle at 0 50%,
+      #0000 var(--stamp-r),
+      #000 calc(var(--stamp-r) + 0.5px)
+    ),
+    radial-gradient(
+      circle at 100% 50%,
+      #0000 var(--stamp-r),
+      #000 calc(var(--stamp-r) + 0.5px)
+    );
   mask-size:
     calc(100% - var(--stamp-d)) calc(100% - var(--stamp-d)),
     var(--stamp-d) calc(var(--stamp-r) + 1px),
     var(--stamp-d) calc(var(--stamp-r) + 1px),
     calc(var(--stamp-r) + 1px) var(--stamp-d),
     calc(var(--stamp-r) + 1px) var(--stamp-d);
-  mask-position: center, top, bottom, left, right;
+  mask-position:
+    center,
+    top left,
+    bottom left,
+    top left,
+    top right;
   mask-repeat: no-repeat, repeat-x, repeat-x, repeat-y, repeat-y;
+  mask-composite: add;
 }
 
 /* Honest unavailable state — timeline still usable without a second map design */

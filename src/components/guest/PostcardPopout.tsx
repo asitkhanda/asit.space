@@ -131,7 +131,7 @@ function CorrespondenceBack({
           <p
             className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.22em] ${ink}`}
           >
-            A Space · {Number.isNaN(year) ? "" : year}
+            Hey There! · {Number.isNaN(year) ? "" : year}
           </p>
         </div>
 
