@@ -3,7 +3,7 @@
  * Derived from entry created_at — printed QR tokens stay unchanged.
  */
 
-export type GuestBadgeId = "designup-2026";
+export type GuestBadgeId = "designup-2026" | "config-2026";
 
 export type GuestBadge = {
   id: GuestBadgeId;
@@ -17,6 +17,11 @@ export const GUEST_BADGES: readonly GuestBadge[] = [
     id: "designup-2026",
     label: "DesignUp 2026",
     dates: ["2026-10-02", "2026-10-03", "2026-10-04"],
+  },
+  {
+    id: "config-2026",
+    label: "Config 2026",
+    dates: ["2026-10-15"],
   },
 ] as const;
 
