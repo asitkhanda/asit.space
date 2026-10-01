@@ -2,10 +2,58 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, Menu01Icon } from "@hugeicons/core-free-icons";
 import { useSiteChrome } from "./SiteChromeContext";
+import { WeatherGlyph } from "./WeatherGlyph";
+
+function ChromeMarquee({ text }: { text: string }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [overflows, setOverflows] = useState(false);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const measure = measureRef.current;
+    if (!viewport || !measure) return;
+
+    const check = () => {
+      setOverflows(measure.scrollWidth > viewport.clientWidth + 1);
+    };
+
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [text]);
+
+  return (
+    <div ref={viewportRef} className="relative min-w-0 flex-1 overflow-hidden">
+      <span
+        ref={measureRef}
+        className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap"
+        aria-hidden
+      >
+        {text}
+      </span>
+      {overflows ? (
+        <div className="marquee-track gap-6">
+          <span>{text}</span>
+          <span aria-hidden>{text}</span>
+        </div>
+      ) : (
+        <span className="block truncate whitespace-nowrap">{text}</span>
+      )}
+    </div>
+  );
+}
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -83,7 +131,7 @@ function NavLinkItems({
 
 export function SiteFloatingNav() {
   const pathname = usePathname();
-  const { placeName, weather, mapsUrl, onDarkSurface } = useSiteChrome();
+  const { placeName, weather, mapsUrl } = useSiteChrome();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -92,8 +140,15 @@ export function SiteFloatingNav() {
   const isMapHome = pathname === "/";
   const canNavigate = isMapHome && Boolean(mapsUrl);
   const showNavigateCluster = isMapHome;
-  const subtle = onDarkSurface ? "text-white/55" : "text-black/45";
-  const subtleStrong = onDarkSurface ? "text-white/75" : "text-black/60";
+
+  const weatherLine =
+    weather?.status === "ready"
+      ? [placeName, weather.mood].filter(Boolean).join(" · ")
+      : weather?.status === "loading"
+        ? [placeName, "Checking sky…"].filter(Boolean).join(" · ")
+        : placeName
+          ? `${placeName} · Sky quiet`
+          : null;
 
   useEffect(() => {
     setMenuOpen(false);
@@ -184,7 +239,7 @@ export function SiteFloatingNav() {
 
         {/* Right — navigate + subtle weather/place (map chrome only) */}
         {showNavigateCluster ? (
-          <div className="pointer-events-auto flex max-w-[min(100%,11.5rem)] shrink-0 flex-col items-end gap-1.5 sm:max-w-[min(100%,280px)] sm:gap-2">
+          <div className="pointer-events-auto inline-block max-w-[min(100%,11.5rem)] shrink-0 sm:max-w-[min(100%,280px)]">
             {canNavigate ? (
               <a
                 href={mapsUrl!}
@@ -205,23 +260,32 @@ export function SiteFloatingNav() {
               </span>
             )}
 
-            <div
-              className={`hidden px-1 text-right text-[11px] leading-snug tracking-wide sm:block ${subtle}`}
-              aria-live="polite"
-            >
-              {placeName ? (
-                <p className={`font-medium ${subtleStrong}`}>{placeName}</p>
-              ) : null}
-              {weather?.status === "ready" ? (
-                <p className="mt-0.5">
-                  {Math.round(weather.tempC)}° · {weather.mood}
-                </p>
-              ) : weather?.status === "loading" ? (
-                <p className="mt-0.5">Checking sky…</p>
-              ) : placeName ? (
-                <p className="mt-0.5 opacity-70">Sky quiet</p>
-              ) : null}
-            </div>
+            {/* Caps to Navigate width; solid chip for readable contrast on the map */}
+            {weatherLine || weather?.status === "ready" ? (
+              <div
+                className="mt-1.5 hidden w-0 min-w-full sm:block"
+                aria-live="polite"
+              >
+                <div
+                  className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1.5 text-[11px] font-medium leading-none tracking-wide text-black shadow-[0_8px_28px_rgba(0,0,0,0.14)] ring-1 ring-black/8 backdrop-blur-xl"
+                  title={
+                    weather?.status === "ready"
+                      ? `${placeName ? `${placeName} · ` : ""}${Math.round(weather.tempC)}° ${weather.mood}`
+                      : (weatherLine ?? undefined)
+                  }
+                >
+                  {weather?.status === "ready" ? (
+                    <>
+                      <WeatherGlyph code={weather.code} className="size-4" />
+                      <span className="shrink-0 tabular-nums text-black">
+                        {Math.round(weather.tempC)}°
+                      </span>
+                    </>
+                  ) : null}
+                  {weatherLine ? <ChromeMarquee text={weatherLine} /> : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : (
           <div aria-hidden className="w-0" />

@@ -11,7 +11,7 @@ import {
 
 export type SiteWeather =
   | { status: "loading" }
-  | { status: "ready"; tempC: number; mood: string }
+  | { status: "ready"; tempC: number; mood: string; code: number }
   | { status: "unavailable" }
   | null;
 

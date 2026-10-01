@@ -279,6 +279,7 @@ export function MapTimeline({ posts }: { posts: PostWithPeople[] }) {
               status: "ready",
               tempC: weather.tempC,
               mood: weatherMood(weather.code),
+              code: weather.code,
             }
           : weather.status === "loading"
             ? { status: "loading" }
