@@ -124,48 +124,61 @@ function CorrespondenceBack({
 
   return (
     <PostcardShell>
-      <div className="grid h-full gap-5 overflow-y-auto px-4 py-4 sm:grid-cols-[1.1fr_1px_0.9fr] sm:gap-0 sm:px-6 sm:py-5">
-        <div className="sm:pr-6">
-          <p className={`text-[10px] font-medium uppercase tracking-[0.18em] ${ink}`}>
+      {/* Always two columns so the landscape face fits without scrolling on phones. */}
+      <div className="grid h-full grid-cols-[minmax(0,1.1fr)_1px_minmax(0,0.9fr)] overflow-hidden px-3 py-3 sm:px-6 sm:py-5">
+        <div className="flex min-h-0 flex-col overflow-hidden pr-2.5 sm:pr-6">
+          <p
+            className={`shrink-0 text-[8px] font-medium uppercase tracking-[0.16em] sm:text-[10px] sm:tracking-[0.18em] ${ink}`}
+          >
             This space for writing
           </p>
-          <p className="mt-3 text-[15px] leading-relaxed text-black/75">{noteText(entry)}</p>
+          <p className="mt-2 min-h-0 flex-1 overflow-hidden text-[12px] leading-snug text-black/75 sm:mt-3 sm:text-[15px] sm:leading-relaxed">
+            {noteText(entry)}
+          </p>
         </div>
 
-        <div className="relative hidden sm:block">
+        <div className="relative">
           <div className="absolute inset-y-0 left-0 w-px bg-[var(--color-postcard-ink)]/70" />
           <p
-            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.22em] ${ink}`}
+            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap text-[7px] font-medium uppercase tracking-[0.18em] sm:text-[9px] sm:tracking-[0.22em] ${ink}`}
           >
             Hey There! · {Number.isNaN(year) ? "" : year}
           </p>
         </div>
 
-        <div className="border-t border-[var(--color-postcard-ink)]/30 pt-4 sm:border-t-0 sm:pl-6 sm:pt-0">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className={`font-postcard-serif text-2xl font-bold tracking-tight sm:text-3xl ${ink}`}>
+        <div className="flex min-h-0 flex-col overflow-hidden pl-2.5 sm:pl-6">
+          <div className="flex shrink-0 items-start justify-between gap-2 sm:gap-3">
+            <div className="min-w-0">
+              <h2
+                className={`font-postcard-serif text-lg font-bold tracking-tight sm:text-3xl ${ink}`}
+              >
                 Post Card
               </h2>
-              <p className={`mt-1 text-[9px] font-medium uppercase tracking-[0.16em] ${ink}`}>
+              <p
+                className={`mt-0.5 text-[7px] font-medium uppercase tracking-[0.14em] sm:mt-1 sm:text-[9px] sm:tracking-[0.16em] ${ink}`}
+              >
                 This side is for the address
               </p>
             </div>
-            <div className="w-14 shrink-0 sm:w-16">
+            <div className="w-10 shrink-0 sm:w-16">
               <MiniStampFace photo={photo} day={day} />
             </div>
           </div>
 
-          <div className={`mt-5 space-y-2.5 border-[var(--color-postcard-ink)]/45 ${ink}`}>
-            <p className="border-b border-current/40 pb-1.5 text-sm text-black/80">{entry.name}</p>
-            <p className="border-b border-current/40 pb-1.5 text-sm text-black/80">
+          <div
+            className={`mt-3 flex min-h-0 flex-1 flex-col justify-end space-y-1.5 border-[var(--color-postcard-ink)]/45 sm:mt-5 sm:space-y-2.5 ${ink}`}
+          >
+            <p className="truncate border-b border-current/40 pb-1 text-[11px] text-black/80 sm:pb-1.5 sm:text-sm">
+              {entry.name}
+            </p>
+            <p className="truncate border-b border-current/40 pb-1 text-[11px] text-black/80 sm:pb-1.5 sm:text-sm">
               {entry.location_name?.trim() || "Somewhere along the way"}
             </p>
-            <p className="border-b border-current/40 pb-1.5 text-sm text-black/80">
+            <p className="truncate border-b border-current/40 pb-1 text-[11px] text-black/80 sm:pb-1.5 sm:text-sm">
               {formatPostDate(entry.created_at)}
             </p>
             {coords ? (
-              <p className="border-b border-current/40 pb-1.5 font-mono text-xs text-black/60">
+              <p className="truncate border-b border-current/40 pb-1 font-mono text-[10px] text-black/60 sm:pb-1.5 sm:text-xs">
                 {coords}
               </p>
             ) : null}
@@ -191,43 +204,51 @@ function TypedPerforated({
 
   return (
     <PostcardShell>
-      <div className="flex h-full flex-col overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-        <div className="flex items-start justify-between gap-4">
-          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-black/45">
+      <div className="flex h-full flex-col overflow-hidden px-3 py-3 sm:px-6 sm:py-5">
+        <div className="flex shrink-0 items-start justify-between gap-3 sm:gap-4">
+          <p className="text-[8px] font-medium uppercase tracking-[0.18em] text-black/45 sm:text-[10px] sm:tracking-[0.2em]">
             Guest postcard
           </p>
-          <div className="w-12 shrink-0 sm:w-14">
+          <div className="w-9 shrink-0 sm:w-14">
             <MiniStampFace photo={photo} day={day} />
           </div>
         </div>
 
-        <div className="mt-4 grid flex-1 gap-6 sm:grid-cols-[1.15fr_1px_0.85fr]">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-black sm:text-3xl">
+        <div className="mt-2 grid min-h-0 flex-1 grid-cols-[minmax(0,1.15fr)_1px_minmax(0,0.85fr)] gap-0 sm:mt-4">
+          <div className="flex min-h-0 flex-col overflow-hidden pr-2.5 sm:pr-0">
+            <h2 className="shrink-0 text-base font-semibold tracking-tight text-black sm:text-3xl">
               {title}
             </h2>
-            <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.16em] text-black/40">
+            <p className="mt-0.5 shrink-0 text-[8px] font-medium uppercase tracking-[0.14em] text-black/40 sm:mt-1 sm:text-[10px] sm:tracking-[0.16em]">
               {formatPostDate(entry.created_at)}
             </p>
-            <p className="mt-4 text-[15px] leading-relaxed text-black/70">{noteText(entry)}</p>
+            <p className="mt-2 min-h-0 flex-1 overflow-hidden text-[12px] leading-snug text-black/70 sm:mt-4 sm:text-[15px] sm:leading-relaxed">
+              {noteText(entry)}
+            </p>
           </div>
 
-          <div className="hidden bg-black/20 sm:block" />
+          <div className="bg-black/20" />
 
-          <div className="border-t border-black/10 pt-4 sm:border-t-0 sm:pt-0">
-            <div className="space-y-2.5">
-              <p className="border-b border-black/25 pb-1.5 text-sm text-black/80">{entry.name}</p>
-              <p className="border-b border-black/25 pb-1.5 text-sm text-black/80">
+          <div className="flex min-h-0 flex-col justify-end overflow-hidden pl-2.5 sm:pl-0">
+            <div className="space-y-1.5 sm:space-y-2.5">
+              <p className="truncate border-b border-black/25 pb-1 text-[11px] text-black/80 sm:pb-1.5 sm:text-sm">
+                {entry.name}
+              </p>
+              <p className="truncate border-b border-black/25 pb-1 text-[11px] text-black/80 sm:pb-1.5 sm:text-sm">
                 {formatPostDate(entry.created_at)}
               </p>
               {coords ? (
-                <p className="border-b border-black/25 pb-1.5 font-mono text-xs text-black/55">
+                <p className="truncate border-b border-black/25 pb-1 font-mono text-[10px] text-black/55 sm:pb-1.5 sm:text-xs">
                   {coords}
                 </p>
               ) : (
-                <p className="border-b border-black/25 pb-1.5 text-sm text-black/35">—</p>
+                <p className="border-b border-black/25 pb-1 text-[11px] text-black/35 sm:pb-1.5 sm:text-sm">
+                  —
+                </p>
               )}
-              <p className="border-b border-black/25 pb-1.5 text-sm text-black/35">asit.space</p>
+              <p className="truncate border-b border-black/25 pb-1 text-[11px] text-black/35 sm:pb-1.5 sm:text-sm">
+                asit.space
+              </p>
             </div>
           </div>
         </div>
