@@ -1,6 +1,6 @@
 import { mapsUrlFromCoords } from "@/lib/format";
 import { parseMomentDate } from "@/lib/telegram/date";
-import { parseMapsLink } from "@/lib/telegram/maps";
+import { parseCoords, parseMapsLink } from "@/lib/telegram/maps";
 import { parsePeopleLines, type PersonInput } from "@/lib/telegram/people";
 
 export type CaptionParse = {
@@ -29,18 +29,6 @@ Bob | https://linkedin.com/in/bob
 
 If the caption is complete, the bot publishes with no extra questions.
 Telegram location pins can’t go in a caption — use a Maps link or coordinates.`;
-
-function parseCoords(text: string): { lat: number; lng: number } | null {
-  const m = text
-    .trim()
-    .match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
-  if (!m) return null;
-  const lat = Number(m[1]);
-  const lng = Number(m[2]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-  return { lat, lng };
-}
 
 /**
  * Standard caption:

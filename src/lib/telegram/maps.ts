@@ -46,6 +46,54 @@ function pair(
   return { lat, lng };
 }
 
+function dmsToDecimal(
+  deg: number,
+  minutes: number,
+  seconds: number,
+  hemi?: string,
+) {
+  let value = Math.abs(deg) + minutes / 60 + seconds / 3600;
+  if (hemi && /[SWsw]/.test(hemi)) value = -value;
+  else if (!hemi && deg < 0) value = -value;
+  return value;
+}
+
+/**
+ * Parse pasted coordinates:
+ * - decimal: 12.9731, 77.6073
+ * - DMS: 12°59'24.0"N 77°43'46.2"E
+ */
+export function parseCoords(text: string): { lat: number; lng: number } | null {
+  const raw = text.trim().replace(/\u00a0/g, " ");
+
+  const decimal = raw.match(
+    /^(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)$/,
+  );
+  if (decimal) return pair(decimal[1], decimal[2]);
+
+  // 12°59'24.0"N 77°43'46.2"E (also unicode ′ ″)
+  const dms = raw.match(
+    /^(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['′]\s*(\d{1,2}(?:\.\d+)?)\s*["″]?\s*([NSns])\s*[, ]\s*(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['′]\s*(\d{1,2}(?:\.\d+)?)\s*["″]?\s*([EWew])$/,
+  );
+  if (dms) {
+    const lat = dmsToDecimal(
+      Number(dms[1]),
+      Number(dms[2]),
+      Number(dms[3]),
+      dms[4],
+    );
+    const lng = dmsToDecimal(
+      Number(dms[5]),
+      Number(dms[6]),
+      Number(dms[7]),
+      dms[8],
+    );
+    if (validCoords(lat, lng)) return { lat, lng };
+  }
+
+  return null;
+}
+
 /**
  * Extract lat,lng from common Google Maps URL shapes.
  * Prefer the place pin (!3d/!4d) over the viewport center (@lat,lng).
@@ -122,12 +170,33 @@ function stripTrailingJunk(href: string) {
   return href.replace(/[),\]]+$/g, "");
 }
 
+function coordsFromHtml(html: string): { lat: number; lng: number } | null {
+  const pin8 = html.match(/!8m2!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/);
+  const from8 = pair(pin8?.[1], pin8?.[2]);
+  if (from8) return from8;
+
+  const bang = html.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/);
+  const fromBang = pair(bang?.[1], bang?.[2]);
+  if (fromBang) return fromBang;
+
+  const at = html.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  const fromAt = pair(at?.[1], at?.[2]);
+  if (fromAt) return fromAt;
+
+  return null;
+}
+
 /**
  * Follow short-link redirects; Cloudflare/Google may need a few hops.
- * Returns the final URL after redirects (or the original on failure).
+ * Returns the final URL after redirects (or the original on failure),
+ * plus any coordinates scraped from redirect HTML.
  */
-async function resolveMapsUrl(href: string): Promise<string> {
+async function resolveMapsUrl(
+  href: string,
+): Promise<{ url: string; coords: { lat: number; lng: number } | null }> {
   let current = href;
+  let coords: { lat: number; lng: number } | null = null;
+
   for (let i = 0; i < 5; i++) {
     try {
       const res = await fetch(current, {
@@ -150,38 +219,48 @@ async function resolveMapsUrl(href: string): Promise<string> {
           res.status === 308)
       ) {
         current = new URL(loc, current).href;
+        coords = coordsFromMapsUrl(current) ?? coords;
         continue;
       }
 
       // Follow mode may already be final
       if (res.url && res.url !== current) {
         current = res.url;
+        coords = coordsFromMapsUrl(current) ?? coords;
       }
 
       // Meta-refresh / canonical in HTML when Location header is missing
       if (res.ok) {
         const html = await res.text();
+        coords = coordsFromHtml(html) ?? coords;
+
         const canonical = html.match(
           /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i,
         );
         if (canonical?.[1]?.includes("google.") && canonical[1].includes("/maps")) {
-          return canonical[1];
+          current = canonical[1];
+          coords = coordsFromMapsUrl(current) ?? coords;
+          return { url: current, coords };
         }
         const og = html.match(
           /<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i,
         );
         if (og?.[1]?.includes("google.") && og[1].includes("/maps")) {
-          return og[1];
+          current = og[1];
+          coords = coordsFromMapsUrl(current) ?? coords;
+          return { url: current, coords };
         }
         const embedded = html.match(
           /https:\/\/(?:www\.)?google\.[^"'/\s]+\/maps\/[^"'\s<>]+/i,
         );
         if (embedded?.[0]) {
-          return embedded[0].replace(/&amp;/g, "&");
+          current = embedded[0].replace(/&amp;/g, "&");
+          coords = coordsFromMapsUrl(current) ?? coords;
+          return { url: current, coords };
         }
       }
 
-      return current;
+      return { url: current, coords };
     } catch {
       break;
     }
@@ -197,15 +276,76 @@ async function resolveMapsUrl(href: string): Promise<string> {
           "Mozilla/5.0 (compatible; asit.space-bot/1.0; +https://asit.space)",
       },
     });
-    return res.url || current;
+    const finalUrl = res.url || current;
+    coords = coordsFromMapsUrl(finalUrl) ?? coords;
+    if (res.ok) {
+      const html = await res.text();
+      coords = coordsFromHtml(html) ?? coords;
+    }
+    return { url: finalUrl, coords };
   } catch {
-    return current;
+    return { url: current, coords };
   }
+}
+
+function geocodeCandidates(name: string): string[] {
+  // "&" and long "Hotel & Convention Center" tails often miss in Nominatim
+  const cleaned = name
+    .replace(/\s+/g, " ")
+    .replace(/&/g, "and")
+    .trim();
+  if (!cleaned) return [];
+
+  const beforeComma = cleaned.split(",")[0]?.trim() ?? cleaned;
+  const words = beforeComma.split(/\s+/).filter(Boolean);
+
+  return [
+    words.slice(0, 4).join(" "),
+    words.slice(0, 5).join(" "),
+    beforeComma,
+    cleaned.split(",").slice(0, 2).join(",").trim(),
+    words.slice(0, 3).join(" "),
+    cleaned,
+  ].filter((q, i, arr) => q.length >= 4 && arr.indexOf(q) === i);
+}
+
+/** Geocode a place-name Maps share (q=Hotel Name) via OpenStreetMap. */
+async function geocodePlaceName(
+  name: string,
+): Promise<{ lat: number; lng: number } | null> {
+  for (const q of geocodeCandidates(name)) {
+    try {
+      const url =
+        "https://nominatim.openstreetmap.org/search?" +
+        new URLSearchParams({
+          format: "json",
+          limit: "1",
+          q,
+        });
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "asit.space-bot/1.0 (+https://asit.space)",
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as Array<{ lat?: string; lon?: string }>;
+      const hit = data[0];
+      const coords = pair(hit?.lat, hit?.lon);
+      if (coords) return coords;
+    } catch {
+      /* try next candidate */
+    }
+  }
+
+  return null;
 }
 
 /**
  * Resolve a Google Maps link (including short links) to coordinates.
  * Keeps the resolved Maps URL so the site link matches what you shared.
+ * Place-name shares (q=Hotel…) with no embedded lat/lng are geocoded.
  */
 export async function parseMapsLink(
   text: string,
@@ -232,16 +372,25 @@ export async function parseMapsLink(
     url.hostname === "maps.app.goo.gl";
 
   if (needsResolve) {
-    finalUrl = await resolveMapsUrl(href);
-    coords = coordsFromMapsUrl(finalUrl) ?? coords;
+    const resolved = await resolveMapsUrl(href);
+    finalUrl = resolved.url;
+    coords = resolved.coords ?? coordsFromMapsUrl(finalUrl) ?? coords;
   }
-
-  if (!coords) return null;
 
   const name =
     placeNameFromUrl(finalUrl) ??
     placeNameFromUrl(href) ??
-    `Pin ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
+    null;
+
+  // iPhone/Android place shares often only have q=Name (+ ftid), never lat/lng
+  if (!coords && name) {
+    coords = await geocodePlaceName(name);
+  }
+
+  if (!coords) return null;
+
+  const location_name =
+    name ?? `Pin ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
 
   // Prefer the real Maps URL (place page / short link) over a rebuilt ?q=lat,lng
   // so the chip opens the same pin the publisher shared.
@@ -259,7 +408,7 @@ export async function parseMapsLink(
     lat: coords.lat,
     lng: coords.lng,
     maps_url,
-    location_name: name,
+    location_name,
   };
 }
 
@@ -276,4 +425,13 @@ export function locationFromTelegram(
       title?.trim() ||
       `Pin ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
   };
+}
+
+/** Build a location from pasted decimal/DMS coordinates. */
+export function locationFromCoordsText(
+  text: string,
+): ParsedMapsLocation | null {
+  const coords = parseCoords(text);
+  if (!coords) return null;
+  return locationFromTelegram(coords.lat, coords.lng);
 }

@@ -11,6 +11,7 @@ import {
   parsePublishCaption,
 } from "@/lib/telegram/caption";
 import {
+  locationFromCoordsText,
   locationFromTelegram,
   parseMapsLink,
 } from "@/lib/telegram/maps";
@@ -50,7 +51,7 @@ Send /skip for none.`;
 
 const LOCATION_PROMPT = `No GPS in that photo.
 
-Share a Telegram location pin, or paste a Google Maps link.
+Share a Telegram location pin, paste a Google Maps link, or send coordinates (12.97, 77.60 or 12°59'24"N 77°43'46"E).
 (/cancel to abort)`;
 
 const DATE_PROMPT = `No capture date in that file.
@@ -603,11 +604,12 @@ async function handleLocationStep(message: TelegramMessage, draft: BotDraft) {
     return;
   }
 
-  const parsed = await parseMapsLink(text);
+  const parsed =
+    locationFromCoordsText(text) ?? (await parseMapsLink(text));
   if (!parsed) {
     await sendMessage(
       chatId,
-      "Couldn’t read that. Send a location pin or a Google Maps link.",
+      "Couldn’t read that. Send a location pin, a Google Maps link, or coordinates like 12.97, 77.60.",
     );
     return;
   }
