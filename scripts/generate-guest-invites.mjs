@@ -5,8 +5,8 @@
  * Shared multi-use (one QR for a whole batch):
  *   node --env-file=.env.local scripts/generate-guest-invites.mjs 30 "Design Meetup"
  *
- * Distinct postcards (one QR each):
- *   node --env-file=.env.local scripts/generate-guest-invites.mjs --count 3
+ * Distinct postcards (N QRs). Default is 30 uses each; pass --uses 1 for single-shot:
+ *   node --env-file=.env.local scripts/generate-guest-invites.mjs --count 3 --uses 30 "Postcard"
  *   node --env-file=.env.local scripts/generate-guest-invites.mjs --count 3 --uses 1 "Postcard"
  *
  * Writes under tmp/guest-invites/<timestamp>/:
@@ -57,7 +57,9 @@ function parseArgs(argv) {
   }
 
   if (maxUses == null) {
-    maxUses = count > 1 ? 1 : 30;
+    // Shared batches and multi-QR event packs default to 30 uses each.
+    // Pass --uses 1 when you truly want single-shot postcards.
+    maxUses = 30;
   }
 
   return { count, maxUses, label };

@@ -32,7 +32,8 @@ export default async function GuestInvitePage({ params }: Props) {
         <div className="mx-auto max-w-md rounded-[28px] bg-white p-8 text-center shadow-[0_24px_60px_rgba(0,0,0,0.12)]">
           <h1 className="text-2xl font-semibold">Batch is full</h1>
           <p className="mt-2 text-sm text-black/55">
-            This shared postcard QR already collected its {invite.max_uses} marks.
+            This shared postcard QR already collected its {invite.max_uses}{" "}
+            {invite.max_uses === 1 ? "mark" : "marks"}.
           </p>
           <Link
             href="/postcards"

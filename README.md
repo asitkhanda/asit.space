@@ -80,7 +80,10 @@ npm i -D qrcode   # optional, for PNG output
 # One shared QR (up to 30 submissions)
 npm run guest:invites -- 30 "Design Meetup"
 
-# Three distinct postcard QRs (1 use each)
+# Three distinct postcard QRs (30 uses each by default)
+npm run guest:invites -- --count 3 --uses 30 "Postcard"
+
+# Single-shot cards (1 use each)
 npm run guest:invites -- --count 3 --uses 1 "Postcard"
 ```
 

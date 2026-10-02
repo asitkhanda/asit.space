@@ -85,7 +85,9 @@ Deno.serve(async (req: Request) => {
 
   const maxUses = invite.max_uses ?? 1;
   const useCount = invite.use_count ?? 0;
-  if (useCount >= maxUses || invite.used_at) {
+  // used_at is set when the batch hits max_uses; trust the counters so raising
+  // max_uses on a previously-exhausted invite reopens without a manual used_at clear.
+  if (useCount >= maxUses) {
     return bad("This postcard invite is full — no submissions left.", 409);
   }
 
