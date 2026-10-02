@@ -22,8 +22,8 @@ export function DesignUpChromeBadge({
       title={title}
       compactSrc="/badges/designup-2026-sm.png?v=7"
       largeSrc="/badges/designup-2026.png?v=7"
-      compactBox="h-10 w-[39px] sm:h-11 sm:w-[43px]"
-      largeBox="h-[76px] w-[74px] sm:h-[88px] sm:w-[86px]"
+      compactBox="h-7 w-[27px] sm:h-8 sm:w-[31px]"
+      largeBox="h-[52px] w-[51px] sm:h-[60px] sm:w-[58px]"
       compactSize={{ width: 222, height: 238 }}
       largeSize={{ width: 333, height: 357 }}
       shineClassName="designup-chrome-shine"

@@ -25,8 +25,8 @@ export function ConfigBadge({
   title = "Config 2026",
 }: Props) {
   const box = compact
-    ? "h-3.5 w-[70px] sm:h-4 sm:w-[80px]"
-    : "h-9 w-[180px] sm:h-10 sm:w-[200px]";
+    ? "h-2.5 w-[52px] sm:h-3 sm:w-[60px]"
+    : "h-6 w-[130px] sm:h-7 sm:w-[148px]";
   const src = compact
     ? "/badges/config-2026-sm.png?v=3"
     : "/badges/config-2026.png?v=3";
